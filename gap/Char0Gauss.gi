@@ -28,7 +28,6 @@ function(N, r)
 
         a0 := a1; b0 := b1;
         a1 := a2; b1 := b2;
-        Print(" -- ", a0, " ", a1, " ", b0, " ", b1, " ", b2, "\n");
     od;
     if (2 * b1^2 <= N - 1) and GcdInt(a1, b1) = 1 then
         return a1 / b1;
