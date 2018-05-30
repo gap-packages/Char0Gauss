@@ -9,5 +9,3 @@ fi;
 
 AutoDoc( rec( scaffold := true, autodoc := true ) );
 
-PrintTo("VERSION", PackageInfo("Char0Gauss")[1].Version);
-
