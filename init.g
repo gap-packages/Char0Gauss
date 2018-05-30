@@ -9,4 +9,9 @@ if _PATH_SO <> fail then
 fi;
 Unbind(_PATH_SO);
 
+
+ReadPackage( "Char0Gauss", "gap/Util.gd");
+ReadPackage( "Char0Gauss", "gap/PadicHelpers.gd");
+ReadPackage( "Char0Gauss", "gap/LinAlgPadic.gd");
+
 ReadPackage( "Char0Gauss", "gap/Char0Gauss.gd");

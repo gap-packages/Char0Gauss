@@ -84,9 +84,9 @@ function(mat, vecs, p, precision, max_iter)
     Info(InfoMajoranaLinearEq, 5,
          "MakeIntSystem2: computing denominator lcms" );
 
-    mmults := List(system.mat, x -> _FoldList2(x, DenominatorRat, LcmInt));
-    vmults := List(system.vecs, x -> _FoldList2(x, DenominatorRat, LcmInt));
-    lcm := _FoldList2(Concatenation(mmults, vmults), IdFunc, LcmInt);
+    mmults := List(system.mat, x -> C0GAUSS_FoldList2(x, DenominatorRat, LcmInt));
+    vmults := List(system.vecs, x -> C0GAUSS_FoldList2(x, DenominatorRat, LcmInt));
+    lcm := C0GAUSS_FoldList2(Concatenation(mmults, vmults), IdFunc, LcmInt);
 
     Info(InfoMajoranaLinearEq, 5,
          "MakeIntSystem2: lcm: ", lcm);
