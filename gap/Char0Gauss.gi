@@ -11,7 +11,7 @@ end );
 #
 # Exists as "RatNumberFromModular" in the edim package as well.
 #
-InstallGlobalFunction( FareyReconstruction,
+InstallGlobalFunction( RationalReconstruction,
 function(N, r)
     local a0, b0, a1, b1, a2, b2, q;
 

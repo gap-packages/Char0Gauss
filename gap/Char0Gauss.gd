@@ -11,4 +11,4 @@ DeclareGlobalFunction( "Char0Gauss_Example" );
 
 #! @Description
 #!   Insert documentation
-DeclareGlobalFunction( "FareyReconstruction" );
+DeclareGlobalFunction( "RationalReconstruction" );
