@@ -130,7 +130,8 @@ function(system, vi)
         done, iterations,
         soln_padic,
         ppower, sol, x, y, i,
-        k, old_denom, denom, vecd, iter;
+        k, old_denom, denom, vecd, iter,
+        recovered_rat;
 
     p := system.p;
 
@@ -161,7 +162,7 @@ function(system, vi)
         iterations := iterations + 1;
 
         if iterations mod 100 = 0 then
-            Info(InfoMajoranaLinearEq, 5, STRINGIFY(iterations, " iterations"));
+            Info(InfoMajoranaLinearEq, 10, STRINGIFY(iterations, " iterations"));
         fi;
 
         # solve the system mod p
@@ -201,12 +202,24 @@ function(system, vi)
 
             # FIXME: I don't like this state struct design at the moment
             system.int_solution := soln;
+            system.rat_solution := soln;
             return true;
         else
             if iterations > system.precision then
-                Info(InfoMajoranaLinearEq, 5,
-                     "reached iteration limit, trying to compute denominator");
-                # Compute the least common denominator of them all
+        #        Info(InfoMajoranaLinearEq, 5,
+        #             "reached iteration limit, trying to compute denominator");
+
+                # Recover rational solutions
+                recovered_rat := List( soln_padic{ system.solvable_variables }, x -> RationalReconstruction(system.padic_family!.modulus, x![2]));
+
+                if ForAny(recovered_rat, x -> x = fail) then
+                    Error("failed to recover");
+                else
+                    system.rat_solution := ListWithIdenticalEntries( system.number_variables, 0 );
+                    system.rat_solution{ system.solvable_variables } := recovered_rat;
+                    
+                    return true;
+                fi;
 
                 denom := PadicDenominatorList( soln_padic{ system.solvable_variables }, system.padic_iterations);
                 Info(InfoMajoranaLinearEq, 5,
@@ -269,7 +282,8 @@ function(mat, vecs)
 
     mat := ConvertSparseMatrixToMatrix(mat);
     vecs := ConvertSparseMatrixToMatrix(vecs);
-    if Length(mat) = 0 or Length(mat[1]) = 0 then
+    if Length(mat) = 0 or Length(mat[1]) = 0
+       or Length(vecs) = 0 or Length(vecs[1]) = 0 then
         return res;
     fi;
 
@@ -279,17 +293,20 @@ function(mat, vecs)
                                                  , MAJORANA_Padic_Precision
                                                  , MAJORANA_Padic_Iterations );
     if Length(system.solvable_variables) > 0 then
-    for vi in [1..Length(system.transposed_vecs)] do
-        MAJORANA_SolutionIntMatVec_Padic(system, vi);
-        Add(res.solutions, system.int_solution / system.solution_denominator );
-    od;
+        Info(InfoMajoranaLinearEq, 5,
+             "Solving for: ", Length(system.transposed_vecs), " rhs\n");
+        for vi in [1..Length(system.transposed_vecs)] do
+            MAJORANA_SolutionIntMatVec_Padic(system, vi);
+            Add(res.solutions, system.rat_solution);
+            # Add(res.solutions, system.int_solution / system.solution_denominator );
+        od;
 
-    res.solutions := TransposedMatMutable(res.solutions);
-    res.solutions := List(res.solutions, x -> SparseMatrix([x], Rationals));
+        res.solutions := TransposedMatMutable(res.solutions);
+        res.solutions := List(res.solutions, x -> SparseMatrix([x], Rationals));
     fi;
     res.solutions{ system.unsolvable_variables } := ListWithIdenticalEntries(Length(system.unsolvable_variables), fail);
-   # res.mat := SparseMatrix(system.mat{ system.uninteresting_rows }, Rationals);
-   # res.vec := SparseMatrix(system.vecs{ system.uninteresting_rows }, Rationals);
+    res.mat := SparseMatrix(system.mat{ system.uninteresting_rows }, Rationals);
+    res.vec := SparseMatrix(system.vecs{ system.uninteresting_rows }, Rationals);
 
     # Debugging
     res.system := system;
