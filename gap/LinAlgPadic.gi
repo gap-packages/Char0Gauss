@@ -282,11 +282,9 @@ function(mat, vecs)
 
     mat := ConvertSparseMatrixToMatrix(mat);
     vecs := ConvertSparseMatrixToMatrix(vecs);
-    if Length(mat) = 0 or Length(mat[1]) = 0
-       or Length(vecs) = 0 or Length(vecs[1]) = 0 then
-        return res;
-    fi;
-
+#     if Length(mat) = 0 or Length(mat[1]) = 0 then
+#        return res;
+#    fi;
 
     system := MAJORANA_SetupMatVecsSystem_Padic( mat, vecs
                                                  , MAJORANA_Padic_Prime
@@ -305,9 +303,14 @@ function(mat, vecs)
         res.solutions := List(res.solutions, x -> SparseMatrix([x], Rationals));
     fi;
     res.solutions{ system.unsolvable_variables } := ListWithIdenticalEntries(Length(system.unsolvable_variables), fail);
-    res.mat := SparseMatrix(system.mat{ system.uninteresting_rows }, Rationals);
-    res.vec := SparseMatrix(system.vecs{ system.uninteresting_rows }, Rationals);
 
+    res.mat := CertainRows(SparseMatrix(system.mat), system.unsolvable_rows);
+    res.vec := CertainRows(SparseMatrix(system.vecs), system.unsolvable_rows);
+
+    res.mat!.ring := Rationals;
+    res.vec!.ring := Rationals;
+    
+    
     # Debugging
     res.system := system;
     return res;
