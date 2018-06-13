@@ -4,11 +4,9 @@
 # Declarations
 #
 
-#! @Description
-#!   Insert documentation for you function here
-DeclareGlobalFunction( "Char0Gauss_Example" );
+#DeclareGlobalFunction( "Char0Gauss" );
 
 
 #! @Description
 #!   Insert documentation
-DeclareGlobalFunction( "RationalReconstruction" );
+#DeclareGlobalFunction( "RationalReconstruction" );
