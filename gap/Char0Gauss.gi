@@ -72,7 +72,7 @@ ErrorTolerantLifting := function(N, r)
 end;
 
 Char0Gauss := function(A, b)
-    local s, nom, den, solns, primes, v, p, i, j, t, flag, prod;
+    local s, nom, den, solns, primes, v, p, i, j, t, prod;
     # scan the whole matrix to choose the primes and find the total denominator
     nom := 1;
     den := 1;
@@ -114,7 +114,7 @@ Char0Gauss := function(A, b)
     Display(A);
     Display("WITH");
     Display(b);
-    # iterate all primes
+    # iterate the array of primes
     repeat
         p := primes[i];
         # solve the equation modulo ith prime
@@ -123,13 +123,12 @@ Char0Gauss := function(A, b)
         if v = fail or p in FactorsInt(den) then
             Print("skipped: prime ", p);
             # find new prime that will replace p and hope that it gets solved for it.
-            flag := false;
-            repeat
+            while true do
                 p := NextPrimeInt(p);
                 if i < Length(primes) and not (p in primes) or (i = Length(primes)) then
-                    flag := true;
+                    break;
                 fi;
-            until flag;
+            od;
             primes[i] := p;
             Sort(primes);
             Print("; added ", primes[i], " instead\n");
