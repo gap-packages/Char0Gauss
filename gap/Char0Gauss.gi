@@ -71,8 +71,9 @@ ErrorTolerantLifting := function(N, r)
     return fail;
 end;
 
-Char0Gauss := function(A, b, primes)
+Char0Gauss := function(A, b, primes, die)
     local s, nom, den, solns, step, no_append, v, p, soln_i, i, j, t, prod, tries, Ap, reason;
+    Print("primes ", primes, "\n");
     # scan the whole matrix to choose the primes and find the total denominator
     nom := 1;
     den := 1;
@@ -96,10 +97,10 @@ Char0Gauss := function(A, b, primes)
     Print("lcm denominator: ", den, "\n");
 
     # steps := number_of_primes_between
-    tries := 1;
     step := 1;
+    tries := 100;
+    Print("primes ", primes, "\n");
     if primes = [] then
-        tries := 5;
         primes := [2];
         # add primes until prod becomes 0
         prod := ((nom * den + 1) * 2)^2;
@@ -115,6 +116,10 @@ Char0Gauss := function(A, b, primes)
             Print("increasing boundaries with ", p, "\n");
         od;
     fi;
+
+    if die then
+        tries := 1;
+    fi;
 #    primes[Length(primes) + 1] := 756839;
     # solution vector
     Print("primes ", primes, "\n");
@@ -128,7 +133,7 @@ Char0Gauss := function(A, b, primes)
 
     soln_i := 1;
     solns := [];
-    no_append := 1;
+    no_append := QuoInt(Length(primes), 2);
     repeat
         Print("primes: ", primes, "\n");
         # iterate the array of primes
@@ -138,7 +143,7 @@ Char0Gauss := function(A, b, primes)
             p := primes[i];
             # solve the equation modulo ith prime
             # need to check the dimension
-            Ap := Zero(Z(p)) * A;
+#            Ap := One(Z(p)) * A;
             v := fail;
 #            if Rank(Ap) = Minimum(Length(A), Length(A[1])) then
             reason := "no reason";
@@ -153,7 +158,7 @@ Char0Gauss := function(A, b, primes)
             fi;
             # if the failure is detected a posteriori, choose a different prime
             #  or v = (Zero(Z(p)) * [1..Length(v)])
-            if v = fail then
+            if v = fail or p in Factors(den) then
 #                if not v = fail then
 #                    reason := "zero solution vector";
 #                fi;
@@ -203,6 +208,7 @@ Char0Gauss := function(A, b, primes)
                 p := NextPrimeInt(p);
             od;
             primes[Length(primes) + 1] := p;
+            Print("added a prime ", p, "\n");
         od;
         Print("reached a solution ", v, "\n");
         tries := tries - 1;
@@ -235,7 +241,7 @@ end;
 #Display(A);
 #Display(b);
 #Display(SolutionMat(A, b));
-#Display(Char0Gauss(A, b, Primes2{[2..10]}));
+#Display(Char0Gauss(A, b, Primes2{[2..10]}), false);
 
 run_tests_char0gauss := function(m, n, times)
     local A, b, v, w, i, t1, t2;
@@ -251,7 +257,7 @@ run_tests_char0gauss := function(m, n, times)
         t1 := NanosecondsSinceEpoch() - t1;
         Display(v);
         t2 := NanosecondsSinceEpoch();
-        w := Char0Gauss(A, b, []);
+        w := Char0Gauss(A, b, Filtered(Primes2, x -> x > 1000000){[2..50]}, false);
         t2 := NanosecondsSinceEpoch() - t2;
         Print("Standard: ", t1 / 1000000000., "\n");
         Print("ChRemThm: ", t2 / 1000000000., "\n");
@@ -265,6 +271,6 @@ run_tests_char0gauss := function(m, n, times)
     od;
 end;
 
-run_tests_char0gauss(50, 50, 10);
+run_tests_char0gauss(50, 50, 1);
 # TODO1: a chosen prime is in the denominator of the solution.
 # TODO2: free variables and dimension of the kernel
