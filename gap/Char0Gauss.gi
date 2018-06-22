@@ -71,9 +71,20 @@ ErrorTolerantLifting := function(N, r)
     return fail;
 end;
 
+DeclareInfoClass("InfoChar0GaussChineseRem");
 Char0Gauss := function(A, b, primes, die)
-    local s, nom, den, solns, step, no_append, v, p, soln_i, i, j, t, prod, tries, Ap, reason;
-    Print("primes ", primes, "\n");
+    local
+        nom, den,
+        solns, soln_i,
+        prod, step,
+        no_used,
+        indices, indices_lookahead,
+        v, r, result, p,
+        i, j, k, t,
+        finish, failures,
+        get_random_inds,
+        get_next_prime;
+    Info(InfoChar0GaussChineseRem, 10, "primes ", primes, "\n");
     # scan the whole matrix to choose the primes and find the total denominator
     nom := 1;
     den := 1;
@@ -93,127 +104,137 @@ Char0Gauss := function(A, b, primes, die)
             den := LCM_INT(den, DenominatorRat(b[i]));
         fi;
     od;
-    Print("lcm numerator: ", nom, "\n");
-    Print("lcm denominator: ", den, "\n");
+#    Info(InfoChar0GaussChineseRem, 10, 10, "Hello, world");
+    Info(InfoChar0GaussChineseRem, 10, "lcm numerator: ", nom, "\n");
+    Info(InfoChar0GaussChineseRem, 10, "lcm denominator: ", den, "\n");
 
+    # some functions
+    get_random_inds := function(k, len)
+        Info(InfoChar0GaussChineseRem, 10, "get_random_inds ", k, " ", len, "\n");
+        return SortedList(Shuffle([1..len]){[1..k]});
+    end;
+    get_next_prime := function(n, step)
+        local i, p;
+        p := n;
+        for i in [1..step] do
+            p := NextPrimeInt(p);
+        od;
+        return p;
+    end;
     # steps := number_of_primes_between
     step := 1;
-    tries := 100;
-    Print("primes ", primes, "\n");
+    Info(InfoChar0GaussChineseRem, 10, "primes ", primes, "\n");
     if primes = [] then
         primes := [2];
         # add primes until prod becomes 0
-        prod := ((nom * den + 1) * 2)^2;
-
-        while prod > 0 do
-            step := step + 1;
-            p := primes[Length(primes)];
-            for i in [1..step] do
-                p := NextPrimeInt(p);
-            od;
-            prod := QuoInt(prod, p);
-            primes[Length(primes) + 1] := p;
-            Print("increasing boundaries with ", p, "\n");
-        od;
-    fi;
-
-    if die then
-        tries := 1;
+#        prod := ((nom * den + 1) * 2)^2;
+#        while prod > 0 do
+##            step := step + 1;
+#            p := get_next_prime(primes[Length(primes)], step);
+#            prod := QuoInt(prod, p);
+#            primes[Length(primes) + 1] := p;
+#            Info(InfoChar0GaussChineseRem, 10, "increasing boundaries with ", p, "\n");
+#        od;
     fi;
 #    primes[Length(primes) + 1] := 756839;
-    # solution vector
-    Print("primes ", primes, "\n");
-    # debug info
     A := den * A;
     b := den * b;
-    Display("SOLVING");
-    Display(A);
-    Display("WITH");
-    Display(b);
+    Info(InfoChar0GaussChineseRem, 10, "primes ", primes, "\n");
+    # debug info
+    Info(InfoChar0GaussChineseRem, 10, "SOLVING\n", A, "\nWITH\n", b, "\n");
 
-    soln_i := 1;
-    solns := [];
-    no_append := QuoInt(Length(primes), 2);
-    repeat
-        Print("primes: ", primes, "\n");
-        # iterate the array of primes
-        v := [];
+    soln_i := 1; # has to be 1
+    solns := []; # must be []
+    r := List([1..Length(A)], x -> []); # remainders
+    no_used := Maximum(1, Int(Length(primes) * .5)); # number of variables used to reconstruct a solution
+    indices := []; # indices of the solution primes
+    finish := -1; # how many verifications left to be performed before we stop
+    failures := 0; # how many failures left before we reshuffle
+    result := List([1..Length(A)], x -> fail);
+    # iterate the array of primes
+    # since solving the matrix is the bottleneck, checks will occur
+    # after each prime, rather than incremental chunks
+    while true do
         i := soln_i;
-        repeat
-            p := primes[i];
-            # solve the equation modulo ith prime
-            # need to check the dimension
-#            Ap := One(Z(p)) * A;
-            v := fail;
-#            if Rank(Ap) = Minimum(Length(A), Length(A[1])) then
-            reason := "no reason";
-            if true then
-                v := SolutionMat(One(Z(p)) * A, One(Z(p)) * b);
-                if v = fail then
-                    reason := "unsolvable";
+        p := primes[i];
+        # solve the equation modulo ith prime
+        # need to check the dimension
+        v := fail;
+#        if Rank(Ap) = Minimum(Length(A), Length(A[1])) then
+        # solve modulo p
+        v := SolutionMat(One(Z(p)) * A, One(Z(p)) * b);
+        # if the failure is detected a posteriori, choose a different prime
+        if v = fail or GcdInt(p, 2 * 3 * 5 * 7 * den) > 1 then
+            Info(InfoChar0GaussChineseRem, 10, "skipped: prime ", p);
+            # find new prime that will replace p and hope that it gets solved for it.
+            while true do
+                p := NextPrimeInt(p);
+                if i < Length(primes) and not (p in primes) or (i = Length(primes)) then
+                    break;
                 fi;
-            else
-                reason := "free variable";
-#                reason := StringPrint("free variables (rank = ", Rank(A), ")");
-            fi;
-            # if the failure is detected a posteriori, choose a different prime
-            #  or v = (Zero(Z(p)) * [1..Length(v)])
-            if v = fail or p in Factors(den) then
-#                if not v = fail then
-#                    reason := "zero solution vector";
-#                fi;
-                Print("skipped: prime ", p, " because ", reason);
-                # find new prime that will replace p and hope that it gets solved for it.
-                while true do
-                    p := NextPrimeInt(p);
-                    if i < Length(primes) and not (p in primes) or (i = Length(primes)) then
+            od;
+            primes[i] := p;
+            Sort(primes);
+            Info(InfoChar0GaussChineseRem, 10, "; added ", primes[i], " instead\n");
+            continue;
+        else # prime approved
+            Info(InfoChar0GaussChineseRem, 10, "approved: prime ", p, "; solution ", List(v, x -> Int(x)), "\n");
+            Append(solns, [v]);
+            # see if using previous indices + this prime we succeed
+            for k in [1..Length(v)] do
+                r[k][i] := Int(v[k]);
+            od;
+            indices_lookahead := indices;
+            Append(indices_lookahead, [i]);
+            if 2*(nom * den)^2 <= Product(primes{indices_lookahead}) then
+                if failures >= 3 then
+                    failures := 0;
+                    # can't happen on 1st iteration since failures > 0
+                    indices := get_random_inds(Minimum(no_used, Length(indices)), i - 1);
+                    finish := -1;
+                    Info(InfoChar0GaussChineseRem, 10, "INLOOP RESHUFFLE ", no_used, "/", i,"\n");
+                fi;
+                if finish = -1 then
+                    finish := 3; # allow that many more primes to consolidate the solution
+                else
+                    finish := finish - 1;
+                    Info(InfoChar0GaussChineseRem, 10, "QUICK FINISH ", finish, "\n");
+                fi;
+                for k in [1..Length(v)] do
+                    result[k] := RationalReconstruction(Product(primes{indices_lookahead}), ChineseRem(primes{indices_lookahead}, r[k]{indices_lookahead}));
+#                    Info(InfoChar0GaussChineseRem, 10, k, "th - ", ChineseRem(primes{indices_lookahead}, r[k]{indices_lookahead}), " -> ", result[k], "\n");
+                    if result[k] = fail then
+                        finish := -1;
+                        failures := failures + 1;
+                        Info(InfoChar0GaussChineseRem, 10, "FAILURES ", failures, "\n");
                         break;
                     fi;
                 od;
-                primes[i] := p;
-                Sort(primes);
-                Print("; added ", primes[i], " instead\n");
-            else
-                # otherwise, proceed
-                Print("approved: prime ", p, "; solution ", List(v, x -> Int(x)), "\n");
-                i := i + 1;
-                Append(solns, [v]);
+                if not finish > 0 then
+                    indices := indices_lookahead;
+                fi;
             fi;
-        until i > Length(primes);
-        soln_i := Length(primes) + 1;
-        if Length(solns) = 0 then
-            return fail;
+            if finish = 0 then
+                Info(InfoChar0GaussChineseRem, 10, r, "\n");
+                return result;
+            fi;
+            i := i + 1;
         fi;
-        v := 0 * [1..Length(solns[1])];
-        prod := Product(primes);
-        Display(primes);
-        Display(solns);
-        for i in [1..Length(solns[1])] do
-            v[i] := 0 * [1..Length(solns)];
-            for j in [1..Length(primes)] do
-                v[i][j] := Int(solns[j][i]);
-            od;
-            Print("remainders: ", v[i], "\n");
-            v[i] := RationalReconstruction(prod, ChineseRem(primes, v[i]));
-        od;
-
-        # add more primes before retrying
-        step := step + 1;
-        no_append := no_append + 1;
-#        step := QuoInt(9 * step, 2);
-        for i in [1..no_append] do
-            p := primes[Length(primes)];
-    #        prod := QuoInt(prod, p);
-            for j in [1..step] do
-                p := NextPrimeInt(p);
-            od;
-            primes[Length(primes) + 1] := p;
-            Print("added a prime ", p, "\n");
-        od;
-        Print("reached a solution ", v, "\n");
-        tries := tries - 1;
-    until not fail in v or tries = 0;
-    return v;
+        soln_i := i;
+        no_used := Int(.95 * soln_i);
+        # since not successful, make a different subset
+        if i > Length(primes) then
+            if die then
+                break;
+            elif finish = -1 then
+                Info(InfoChar0GaussChineseRem, 10, "ROUTINE SHUFFLE ", no_used, "/", Length(primes), "\n");
+                indices := get_random_inds(no_used, Length(primes));
+            fi;
+            primes[Length(primes) + 1] := get_next_prime(Int(primes[Length(primes)] * 1.0), step);
+            Info(InfoChar0GaussChineseRem, 10, "added a prime[", i, "] ", p, "\n");
+        fi;
+    od;
+    return result;
 end;
 
 #primes := [ 2, 5, 11, 17, 23, 31, 41, 47, 59, 67, 73, 83, 97, 103, 109, 127,
@@ -243,8 +264,24 @@ end;
 #Display(SolutionMat(A, b));
 #Display(Char0Gauss(A, b, Primes2{[2..10]}), false);
 
+first_n_primes := function(n)
+    local primes, p, i;
+    primes := [];
+    for i in [1..n] do
+        if i = 1 then
+            p := 2;
+        else
+            p := NextPrimeInt(p);
+        fi;
+        Append(primes, [p]);
+    od;
+    return primes;
+end;
+
 run_tests_char0gauss := function(m, n, times)
-    local A, b, v, w, i, t1, t2;
+    local A, b, v, w, i, times1, times2, t1, t2, small_primes;
+    times1 := [];
+    times2 := [];
     for i in [1..times] do
         repeat
             A := RandomMat(m, n, Rationals);
@@ -255,22 +292,45 @@ run_tests_char0gauss := function(m, n, times)
         t1 := NanosecondsSinceEpoch();
         v := SolutionMat(A, b);
         t1 := NanosecondsSinceEpoch() - t1;
-        Display(v);
+#        Display(v);
+
+#        small_primes := first_n_primes(2000);
         t2 := NanosecondsSinceEpoch();
-        w := Char0Gauss(A, b, Filtered(Primes2, x -> x > 1000000){[2..50]}, false);
+        w := Char0Gauss(A, b, [], false);
+#        w := Char0Gauss(A, b, Filtered(Primes2, x -> x > 1000000){[2..50]}, false);
+#        w := Char0Gauss(A, b, Filtered(small_primes, x -> x > 100), false);
+#        w := Char0Gauss(A, b, small_primes, false);
         t2 := NanosecondsSinceEpoch() - t2;
-        Print("Standard: ", t1 / 1000000000., "\n");
-        Print("ChRemThm: ", t2 / 1000000000., "\n");
         if not v = w then
             Display("FUCKUP");
             Display(A);
             Display(b);
-            Display(v);
-            Display(w);
+            Print("correct: ", v, "\n");
+            Print("wrong:   ", w, "\n");
+            Display("FAIL");
+            return fail;
         fi;
+        Append(times1, [t1 / 1000000000.]);
+        Append(times2, [t2 / 1000000000.]);
     od;
+    Print("Standard\t", Int((m*n)^.5), "\t", Average(times1), "\n");
+    Print("ChRemThm\t", Int((m*n)^.5), "\t", Average(times2), "\n");
+    return true;
 end;
 
-run_tests_char0gauss(50, 50, 1);
+SetInfoLevel(InfoChar0GaussChineseRem, 10);
+#t := NanosecondsSinceEpoch();
+#Char0Gauss(RandomMat(512, 512, Rationals), RandomMat(1, 512, Rationals)[1], first_n_primes(2000), false);
+#t := (NanosecondsSinceEpoch() - t) / 1000000000.;
+#Display(t);
+
+for i in [1..25] do
+    if run_tests_char0gauss(i, i, 10) = fail then
+        break;
+    fi;
+od;
+
 # TODO1: a chosen prime is in the denominator of the solution.
 # TODO2: free variables and dimension of the kernel
+# TODO3: quick finish fails because full reconstruction does not imply correct solution
+# solved: wait for 6 verifications before approving
