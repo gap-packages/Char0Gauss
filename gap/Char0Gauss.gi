@@ -5,6 +5,7 @@
 #
 
 LoadPackage("meataxe64");
+LoadPackage("gauss");
 
 #
 # Exists as "RatNumberFromModular" in the edim package as well.
@@ -74,12 +75,13 @@ end;
 DeclareInfoClass("InfoChar0GaussChineseRem");
 Char0Gauss := function(A, b, primes, die)
     local
+        Ap, bp,
         nom, den,
         solns, soln_i,
         prod, step,
         no_used,
         indices, indices_lookahead,
-        v, r, result, p,
+        v, mtx_soln, r, result, p,
         i, j, k, t,
         finish, failures,
         get_random_inds,
@@ -148,7 +150,6 @@ Char0Gauss := function(A, b, primes, die)
     r := List([1..Length(A)], x -> []); # remainders
     no_used := Maximum(1, Int(Length(primes) * .5)); # number of variables used to reconstruct a solution
     indices := []; # indices of the solution primes
-    finish := -1; # how many verifications left to be performed before we stop
     failures := 0; # how many failures left before we reshuffle
     result := List([1..Length(A)], x -> fail);
     # iterate the array of primes
@@ -162,9 +163,28 @@ Char0Gauss := function(A, b, primes, die)
         v := fail;
 #        if Rank(Ap) = Minimum(Length(A), Length(A[1])) then
         # solve modulo p
-        v := SolutionMat(One(Z(p)) * A, One(Z(p)) * b);
+        Ap := One(GF(p)) * A;
+        bp := One(GF(p)) * b;
+        if p < 2^60 then
+#            Display(p);
+#            finish := SolutionMat(Ap, bp);
+            mtx_soln := MTX64_SolutionsMat(MTX64_Matrix(Ap), MTX64_Matrix([bp]));
+            Info(InfoChar0GaussChineseRem, 10, MTX64_LengthOfBitString(mtx_soln[1]), ", " , MTX64_Matrix_NumRows(mtx_soln[2]), 'x', MTX64_Matrix_NumCols(mtx_soln[2]), "\n");
+            if(MTX64_Matrix_NumRows(mtx_soln[2])) = 0 then
+                v := fail;
+            else
+                v := List([1..Length(A)], ind -> -One(Z(p)) * MTX64_ExtractFieldElement(MTX64_GetEntry(mtx_soln[2], 0, ind - 1)));
+#                Display(List(finish, x -> Int(x)));
+#                Display(List(v, x -> Int(x)));
+#                if not v = finish then
+#                    return fail;
+#                fi;
+            fi;
+        else
+            v := SolutionMat(Ap, bp);
+        fi;
         # if the failure is detected a posteriori, choose a different prime
-        if v = fail or GcdInt(p, 2 * 3 * 5 * 7 * den) > 1 then
+        if v = fail or Gcd(2 * 3 * 5 * 7 * 11 * den, p) <> 1 then
             Info(InfoChar0GaussChineseRem, 10, "skipped: prime ", p);
             # find new prime that will replace p and hope that it gets solved for it.
             while true do
@@ -186,37 +206,29 @@ Char0Gauss := function(A, b, primes, die)
             od;
             indices_lookahead := indices;
             Append(indices_lookahead, [i]);
-            if 2*(nom * den)^2 <= Product(primes{indices_lookahead}) then
+            finish := true;
+#            if 2*(nom * den)^2 <= Product(primes{indices_lookahead}) then
+            if true then
                 if failures >= 3 then
                     failures := 0;
                     # can't happen on 1st iteration since failures > 0
                     indices := get_random_inds(Minimum(no_used, Length(indices)), i - 1);
-                    finish := -1;
                     Info(InfoChar0GaussChineseRem, 10, "INLOOP RESHUFFLE ", no_used, "/", i,"\n");
-                fi;
-                if finish = -1 then
-                    finish := 3; # allow that many more primes to consolidate the solution
-                else
-                    finish := finish - 1;
-                    Info(InfoChar0GaussChineseRem, 10, "QUICK FINISH ", finish, "\n");
                 fi;
                 for k in [1..Length(v)] do
                     result[k] := RationalReconstruction(Product(primes{indices_lookahead}), ChineseRem(primes{indices_lookahead}, r[k]{indices_lookahead}));
 #                    Info(InfoChar0GaussChineseRem, 10, k, "th - ", ChineseRem(primes{indices_lookahead}, r[k]{indices_lookahead}), " -> ", result[k], "\n");
                     if result[k] = fail then
-                        finish := -1;
+                        finish := false;
                         failures := failures + 1;
                         Info(InfoChar0GaussChineseRem, 10, "FAILURES ", failures, "\n");
                         break;
                     fi;
                 od;
-                if not finish > 0 then
-                    indices := indices_lookahead;
+                if finish and result * A = b then
+                    Info(InfoChar0GaussChineseRem, 10, r, "\n");
+                    return result;
                 fi;
-            fi;
-            if finish = 0 then
-                Info(InfoChar0GaussChineseRem, 10, r, "\n");
-                return result;
             fi;
             i := i + 1;
         fi;
@@ -226,7 +238,7 @@ Char0Gauss := function(A, b, primes, die)
         if i > Length(primes) then
             if die then
                 break;
-            elif finish = -1 then
+            elif RandomList([1..2]) < 2 then
                 Info(InfoChar0GaussChineseRem, 10, "ROUTINE SHUFFLE ", no_used, "/", Length(primes), "\n");
                 indices := get_random_inds(no_used, Length(primes));
             fi;
@@ -278,6 +290,13 @@ first_n_primes := function(n)
     return primes;
 end;
 
+#Read("gap/mat15");
+#mat := TransposedMat(ConvertSparseMatrixToMatrix(mat));
+#Read("gap/vec15");
+#vec := ConvertSparseMatrixToMatrix(vecs);
+#vec := List(vec, ir -> ir[15]);
+
+
 run_tests_char0gauss := function(m, n, times)
     local A, b, v, w, i, times1, times2, t1, t2, small_primes;
     times1 := [];
@@ -286,13 +305,12 @@ run_tests_char0gauss := function(m, n, times)
         repeat
             A := RandomMat(m, n, Rationals);
         until Rank(A) = Minimum(m, n);
+#        A := mat;
+#        b := vec;
 #        Display(A);
 #        Display(Rank(A));
         b := RandomMat(1, n, Rationals)[1];
-        t1 := NanosecondsSinceEpoch();
-        v := SolutionMat(A, b);
-        t1 := NanosecondsSinceEpoch() - t1;
-#        Display(v);
+#        Display(b);
 
 #        small_primes := first_n_primes(2000);
         t2 := NanosecondsSinceEpoch();
@@ -301,6 +319,10 @@ run_tests_char0gauss := function(m, n, times)
 #        w := Char0Gauss(A, b, Filtered(small_primes, x -> x > 100), false);
 #        w := Char0Gauss(A, b, small_primes, false);
         t2 := NanosecondsSinceEpoch() - t2;
+
+        t1 := NanosecondsSinceEpoch();
+        v := SolutionMat(A, b);
+        t1 := NanosecondsSinceEpoch() - t1;
         if not v = w then
             Display("FUCKUP");
             Display(A);
@@ -318,14 +340,22 @@ run_tests_char0gauss := function(m, n, times)
     return true;
 end;
 
-SetInfoLevel(InfoChar0GaussChineseRem, 10);
+SetInfoLevel(InfoChar0GaussChineseRem, 1);
 #t := NanosecondsSinceEpoch();
 #Char0Gauss(RandomMat(512, 512, Rationals), RandomMat(1, 512, Rationals)[1], first_n_primes(2000), false);
 #t := (NanosecondsSinceEpoch() - t) / 1000000000.;
 #Display(t);
 
-for i in [1..25] do
-    if run_tests_char0gauss(i, i, 10) = fail then
+#A := [
+#  [75843, 237842, 2311],
+#  [764, 762634, 1923904],
+#  [3, 4, 5]
+#];
+#b := [1, 1, 1];
+#Display(Char0Gauss(A, b, [], false));
+
+for i in [1, 2, 4, 8, 16, 32, 64, 128, 256] do
+    if run_tests_char0gauss(i, i, 1) = fail then
         break;
     fi;
 od;
