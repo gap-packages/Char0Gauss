@@ -131,7 +131,7 @@ function(system, vi)
         soln_padic,
         ppower, sol, x, y, i,
         k, old_denom, denom, vecd, iter,
-        recovered_rat;
+        recovered_rat, ll;
 
     p := system.p;
 
@@ -210,7 +210,12 @@ function(system, vi)
         #             "reached iteration limit, trying to compute denominator");
 
                 # Recover rational solutions
-                recovered_rat := List( soln_padic{ system.solvable_variables }, x -> RationalReconstruction(system.padic_family!.modulus, x![2]));
+                ll := List(soln_padic{ system.solvable_variables }, x -> x![1]);
+                if PositionProperty(ll, x -> x = 2) <> fail then
+                   Print("ll: ", ll, "\n");
+                fi;
+                recovered_rat := List( soln_padic{ system.solvable_variables }
+                                     , x -> p ^ (x![1] - 1) *  RationalReconstruction(system.padic_family!.modulus, x![2]));
 
                 if ForAny(recovered_rat, x -> x = fail) then
                     Error("failed to recover");
