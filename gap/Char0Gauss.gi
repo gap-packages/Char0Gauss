@@ -218,12 +218,12 @@ Char0Gauss := function(A, b, moduli, die)
             Append(indices_lookahead, [i]);
 
             prod := Product(moduli{indices_lookahead});
-#            alphas := List(indices_lookahead, ind -> Gcdex(prod / moduli[ind], moduli[ind]).coeff1 mod moduli[ind]);
+            alphas := List(indices_lookahead, ind -> Gcdex(prod / moduli[ind], moduli[ind]).coeff1 mod moduli[ind]);
 #            Info(InfoChar0GaussChineseRem, 10, "ALPHAS: ", List([1..Length(indices_lookahead)], x -> [moduli[x], alphas[x]]), "\n");
             for k in [1..Length(v)] do
-                result[k] := RationalReconstruction(prod, ChineseRem(moduli{indices_lookahead}, r[k]{indices_lookahead}));
-#                result[k] := Sum(List([1..Length(indices_lookahead)], ind -> alphas[ind] * r[k][indices_lookahead[ind]] * prod / moduli[indices_lookahead[ind]])) mod prod;
-#                result[k] := RationalReconstruction(prod, result[k]);
+#                result[k] := RationalReconstruction(prod, ChineseRem(moduli{indices_lookahead}, r[k]{indices_lookahead}));
+                result[k] := Sum(List([1..Length(indices_lookahead)], ind -> alphas[ind] * r[k][indices_lookahead[ind]] * prod / moduli[indices_lookahead[ind]])) mod prod;
+                result[k] := RationalReconstruction(prod, result[k]);
 #                Print("CHREM: ", ChineseRem(moduli{indices_lookahead}, r[k]{indices_lookahead}), " VS ", t, "\n");
 #                Info(InfoChar0GaussChineseRem, 10, k, "th - ", ChineseRem(moduli{indices_lookahead}, r[k]{indices_lookahead}), " -> ", result[k], "\n");
                 if result[k] = fail then
