@@ -129,9 +129,9 @@ function(system, vi)
 
         done, iterations,
         soln_padic,
-        ppower, sol, x, y, i,
+        ppower, sol, x, y, i, t, t2,
         k, old_denom, denom, vecd, iter,
-        recovered_rat, ll;
+        recovered_rat, recovered_rat2, ll, zero_p;
 
     p := system.p;
 
@@ -155,9 +155,12 @@ function(system, vi)
     iterations := 0;
     ppower := 1; # this is p^iterations, FIXME: can we avoid this?
 
-    # digits in the p-adic approximation to the solution
-    soln_padic := List([1..system.number_variables], x -> PadicNumber(system.padic_family, 0));
+    # digits in the p-adic approximation to the solution, stored as
+    # an integer
+    soln_padic := ListWithIdenticalEntries(system.number_variables, 0);
+    soln_p := ListWithIdenticalEntries(system.number_variables, Zero(Z(p)));
 
+    t2 := NanosecondsSinceEpoch();
     while (not done) do
         iterations := iterations + 1;
 
@@ -179,15 +182,15 @@ function(system, vi)
 
         # Convert the solution from GF(p) to integers -p/2..p/2-1
         y := List(soln_p, IntFFESymm);
-
-        # they are the coefficients of the p-adic expansion of the denominator
-        # the below is slow, and hence replaced by the hack below that.
-        # soln_padic := soln_padic + List(y, c -> PadicNumber(fam, ppower * -c));
-        soln_padic := soln_padic + List(y, c -> PadicNumber(system.padic_family, [iterations, c mod system.padic_family!.modulus ] ) );
         AddRowVector(soln, y, ppower);
 
-        residue := (residue - y * system.transposed_int_mat);
-        residue{ system.interesting_rows } := residue{ system.interesting_rows } / p;
+        y := -y * system.transposed_int_mat;
+        
+        for i in system.interesting_rows do
+            residue[i] := (residue[i] + y[i])/p;
+        od;
+
+       # residue{ system.interesting_rows } := residue{ system.interesting_rows } / p;
 
         ppower := ppower * p;
 
@@ -197,7 +200,7 @@ function(system, vi)
 
         # Solution found?
         if IsZero( residue ) then
-            Info(InfoMajoranaLinearEq, 5,
+            Info(InfoMajoranaLinearEq, 1,
                  "found an integer solution");
 
             # FIXME: I don't like this state struct design at the moment
@@ -205,68 +208,30 @@ function(system, vi)
             system.rat_solution := soln;
             return true;
         else
-            if iterations > system.precision then
-        #        Info(InfoMajoranaLinearEq, 5,
-        #             "reached iteration limit, trying to compute denominator");
+            if iterations >= system.precision then
+                t2 := NanosecondsSinceEpoch() - t2;
+                Info(InfoMajoranaLinearEq, 1, "\n",
+                     "reaching iteration limit", iterations, " took, ", t2 / 1000000., " msec");
+                Info(InfoMajoranaLinearEq, 1,
+                     "average bits          ", Length(soln), " ", Float(Sum(List(soln, Log2Int)) / Length(soln)), "\n",
+                     "average bits (sol)    ", Length(system.solvable_variables), " ", Float(Sum(List(soln{system.solvable_variables}, Log2Int)) / (Length(system.solvable_variables) + 1)), "\n",
+                     "average bits (unsol)  ", Length(system.unsolvable_variables), " ", Float(Sum(List(soln{system.unsolvable_variables}, Log2Int)) / (Length(system.unsolvable_variables) + 1)), "\n",
+                     "average bits (resid)  ", Length(residue), " ", Float(Sum(List(soln, Log2Int)) / Length(soln)), "\n",
+                     "average bits (intr)   ", Length(system.interesting_rows), " ", Float(Sum(List(residue{system.interesting_rows}, Log2Int)) / (Length(system.interesting_rows) + 1)), "\n",
+                     "average bits (unintr) ", Length(system.uninteresting_rows), " ", Float(Sum(List(residue{system.uninteresting_rows}, Log2Int)) / (Length(system.uninteresting_rows) + 1)), "\n"
+                    );
+
+                Info(InfoMajoranaLinearEq, 5,
+                     "reached iteration limit, trying to recover rational solution");
 
                 # Recover rational solutions
-                ll := List(soln_padic{ system.solvable_variables }, x -> x![1]);
-                if PositionProperty(ll, x -> x = 2) <> fail then
-                   Print("ll: ", ll, "\n");
-                fi;
-                recovered_rat := List( soln_padic{ system.solvable_variables }
-                                     , x -> p ^ (x![1] - 1) *  RationalReconstruction(system.padic_family!.modulus, x![2]));
-
+                recovered_rat := List( soln{ system.solvable_variables }
+                                     , x -> RationalReconstruction(ppower, x) );
                 if ForAny(recovered_rat, x -> x = fail) then
                     Error("failed to recover");
                 else
                     system.rat_solution := ListWithIdenticalEntries( system.number_variables, 0 );
                     system.rat_solution{ system.solvable_variables } := recovered_rat;
-                    
-                    return true;
-                fi;
-
-                denom := PadicDenominatorList( soln_padic{ system.solvable_variables }, system.padic_iterations);
-                Info(InfoMajoranaLinearEq, 5,
-                     "found denominator: ", denom);
-
-                if denom = fail then
-                    Info( InfoMajoranaLinearEq, 10,
-                          "failed to find denominator trying to increase p-adic precision");
-                    Info( InfoMajoranaLinearEq, 10,
-                          "failed to solve rhs ", vi);
-                    Info( InfoMajoranaLinearEq, 10,
-                          "rhs not zero: ", system.rhns, " ", residue{ system.rhns } );
-
-                    if IsBound(system.solution_denominator) then
-                        Info( InfoMajoranaLinearEq, 10,
-                              "got a denominator, so running with that");
-                        system.int_solution := soln;
-                        return true;
-                    fi;
-
-                    Error("Failed to compute denominator");
-                    # FIXME: adjust system, i.e. we could increase precision?
-                    # MAJORANA_SolutionIntMatVec_Padic(system);
-                    return false;
-                elif denom = 1 then
-                    Error("Denominator 1 occurred. This should not happen.");
-                    return false;
-                else
-                    Info(InfoMajoranaLinearEq, 5,
-                         "solving system after multiplying rhs by denominator.");
-
-                    system.solution_denominator := system.solution_denominator * denom;
-                    system.rhns := Intersection( system.solvable_rows,
-                                                 PositionsProperty(residue, x -> not IsZero(x)));
-
-                    Info(InfoMajoranaLinearEq, 5,
-                         "failed to solve rhs ", vi);
-                    Info(InfoMajoranaLinearEq, 5,
-                         "rhs not zero: ", system.rhns, " ", residue{ system.rhns });
-
-                    # try again with new denominator
-                    MAJORANA_SolutionIntMatVec_Padic(system, vi);
                     return true;
                 fi;
             fi;
@@ -278,7 +243,7 @@ end );
 # FIXME: Make compatible with sparse matrices.
 InstallGlobalFunction( MAJORANA_SolutionMatVecs_Padic,
 function(mat, vecs)
-    local vi, system, res;
+    local vi, system, res, t, t2, tmpmat, tmpvecs;
 
     res := rec();
     res.solutions := [];
@@ -287,35 +252,51 @@ function(mat, vecs)
 
     mat := ConvertSparseMatrixToMatrix(mat);
     vecs := ConvertSparseMatrixToMatrix(vecs);
-#     if Length(mat) = 0 or Length(mat[1]) = 0 then
-#        return res;
-#    fi;
 
-    system := MAJORANA_SetupMatVecsSystem_Padic( mat, vecs
+    t := NanosecondsSinceEpoch();
+    system := MAJORANA_SetupMatVecsSystem_Padic( MutableCopyMat(mat), vecs
                                                  , MAJORANA_Padic_Prime
                                                  , MAJORANA_Padic_Precision
                                                  , MAJORANA_Padic_Iterations );
+    t :=  NanosecondsSinceEpoch() - t;
+    Info(InfoMajoranaLinearEq, 1, "setup took: ", t/1000000., " msec\n");
     if Length(system.solvable_variables) > 0 then
         Info(InfoMajoranaLinearEq, 5,
              "Solving for: ", Length(system.transposed_vecs), " rhs\n");
+        t2 := NanosecondsSinceEpoch();
         for vi in [1..Length(system.transposed_vecs)] do
+            t := NanosecondsSinceEpoch();
             MAJORANA_SolutionIntMatVec_Padic(system, vi);
+            t := NanosecondsSinceEpoch() - t;
+            Info(InfoMajoranaLinearEq, 1, "solving rhs took: ", t/1000000., " msec\n");
+
             Add(res.solutions, system.rat_solution);
-            # Add(res.solutions, system.int_solution / system.solution_denominator );
         od;
+        t2 := NanosecondsSinceEpoch() - t2;
+        Info(InfoMajoranaLinearEq, 1, "solving all rhs took: ", t2/1000000., " msec\n");
+
 
         res.solutions := TransposedMatMutable(res.solutions);
         res.solutions := List(res.solutions, x -> SparseMatrix([x], Rationals));
     fi;
     res.solutions{ system.unsolvable_variables } := ListWithIdenticalEntries(Length(system.unsolvable_variables), fail);
 
-    res.mat := CertainRows(SparseMatrix(system.mat), system.unsolvable_rows);
-    res.vec := CertainRows(SparseMatrix(system.vecs), system.unsolvable_rows);
+#    tmpmat := system.lifted_coeffs * system.mat;
+#    tmpvecs := system.lifted_coeffs * system.vecs;
+
+#    res.mat := SparseMatrix(tmpmat{ system.unsolvable_rows }, Rationals);
+#    res.vec := SparseMatrix(tmpvecs{ system.unsolvable_rows }, Rationals);
+
+#     res.mat := CertainRows(SparseMatrix(system.mat), system.unsolvable_rows);
+#    res.vec := CertainRows(SparseMatrix(system.vecs), system.unsolvable_rows);
+
+    res.mat := SparseMatrix(system.mat{ system.unsolvable_rows }, Rationals );
+    res.vec := SparseMatrix(system.vecs{ system.unsolvable_rows }, Rationals );
+
 
     res.mat!.ring := Rationals;
     res.vec!.ring := Rationals;
-    
-    
+
     # Debugging
     res.system := system;
     return res;
