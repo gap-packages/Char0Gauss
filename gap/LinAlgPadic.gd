@@ -10,7 +10,7 @@ DeclareGlobalFunction( "MAJORANA_SetupMatVecsSystem_Padic" );
 DeclareGlobalFunction( "MAJORANA_Padic_Presolve" );
 
 # solve for one vector (integer version)
-DeclareGlobalFunction( "MAJORANA_SolutionIntMatVec_Padic" );
+DeclareGlobalFunction( "MAJORANA_SolutionIntMatVecs_Padic_" );
 
 # solve for a list of vectors (rationals)
 DeclareGlobalFunction( "MAJORANA_SolutionMatVecs_Padic" );

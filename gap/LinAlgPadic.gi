@@ -74,7 +74,7 @@ end );
 
 InstallGlobalFunction(MAJORANA_SetupMatVecsSystem_Padic,
 function(mat, vecs, p, precision, max_iter)
-    local system, mmults, vmults, lcm;
+    local system, mmults, vmults, lcm, t;
     system := rec( mat := mat
                  , vecs := vecs
                  , number_variables := Length(mat[1])
@@ -84,9 +84,13 @@ function(mat, vecs, p, precision, max_iter)
     Info(InfoMajoranaLinearEq, 5,
          "MakeIntSystem2: computing denominator lcms" );
 
+    
+    t := NanosecondsSinceEpoch();
     mmults := List(system.mat, x -> C0GAUSS_FoldList2(x, DenominatorRat, LcmInt));
     vmults := List(system.vecs, x -> C0GAUSS_FoldList2(x, DenominatorRat, LcmInt));
     lcm := C0GAUSS_FoldList2(Concatenation(mmults, vmults), IdFunc, LcmInt);
+    t := NanosecondsSinceEpoch() - t;
+    Info(InfoMajoranaLinearEq, 1, "computing the LCM took: ", t / 1000000., " msec");
 
     Info(InfoMajoranaLinearEq, 5,
          "MakeIntSystem2: lcm: ", lcm);
@@ -107,15 +111,15 @@ function(mat, vecs, p, precision, max_iter)
     system.transposed_int_mat := TransposedMat(system.int_mat);
     system.transposed_coeffs := TransposedMat(system.echelon.coeffs);
     system.transposed_vecs := TransposedMat(system.int_vecs);
-    system.lifted_coeffs := List(system.transposed_coeffs, y -> List(y, IntFFESymm));
+#     system.lifted_coeffs := List(system.transposed_coeffs, y -> List(y, IntFFESymm));
 
     system.solution_denominator := 1;
 
     return system;
 end);
 
-InstallGlobalFunction( MAJORANA_SolutionIntMatVec_Padic,
-function(system, vi)
+InstallGlobalFunction( MAJORANA_SolutionIntMatVecs_Padic_,
+function(system)
     local
         p,
 
@@ -129,36 +133,28 @@ function(system, vi)
 
         done, iterations,
         soln_padic,
-        ppower, sol, x, y, i, t, t2,
+        ppower, sol, x, y, i, j, t, t2,
         k, old_denom, denom, vecd, iter,
-        recovered_rat, recovered_rat2, ll, zero_p;
+        recovered_rat, recovered_rat2, ll, zero_p, number_rhs;
 
     p := system.p;
+    number_rhs := Length(system.transposed_vecs);
 
     # Accumulator for integer solution
-    # FIXME: only solved variables? Should cut down on memory use
-    #        and how many p-adic expansions we have to actually turn
-    #        into denominators
-    soln := ListWithIdenticalEntries(system.number_variables, 0);
+    soln := NullMat(number_rhs, system.number_variables);
 
     # These are the *integer* residuals of the RHS
     # initially this is the RHS we're solving for
-    # FIXME: for testing, only do one RHS right now
-    #        this will trivially generalise fortunately
-    #        but there might be a point in not solving all
-    #        RHS at the same time, in case we discover enough 
-    #        of the denominator to not have to approximate?
-    residue := MutableCopyMat(system.transposed_vecs[vi])
-               * system.solution_denominator;
+    residue := MutableCopyMat(system.transposed_vecs);
 
     done := false;
     iterations := 0;
-    ppower := 1; # this is p^iterations, FIXME: can we avoid this?
+    ppower := 1; # holds p^iterations,
 
     # digits in the p-adic approximation to the solution, stored as
     # an integer
-    soln_padic := ListWithIdenticalEntries(system.number_variables, 0);
-    soln_p := ListWithIdenticalEntries(system.number_variables, Zero(Z(p)));
+    soln_padic := NullMat(number_rhs, system.number_variables, Integers);
+    soln_p := NullMat(number_rhs, system.number_variables, GF(p));
 
     t2 := NanosecondsSinceEpoch();
     while (not done) do
@@ -169,36 +165,36 @@ function(system, vi)
         fi;
 
         # solve the system mod p
-        vec_p := Z(p)^0 * residue;
+        vec_p := ConvertToVectorRep(Z(p)^0 * residue);
         soln_p := vec_p * system.transposed_coeffs;
-        soln_p := List( system.echelon.heads,
-                      function(x)
-                          if x > 0 then
-                              return soln_p[x];
-                          else
-                              return Zero(soln_p[1]);
-                          fi;
-                      end);
+
+        ConvertToVectorRep(system.transposed_coeffs);
+
+        soln_p := List(soln_p, z ->
+                                 List( system.echelon.heads,
+                                     function(x)
+                                         if x > 0 then
+                                             return z[x];
+                                         else
+                                             return Zero(soln_p[1][1]);
+                                         fi;
+                                     end) );
 
         # Convert the solution from GF(p) to integers -p/2..p/2-1
-        y := List(soln_p, IntFFESymm);
-        AddRowVector(soln, y, ppower);
+        y := List(soln_p, z -> List(z, IntFFESymm));
+        # AddRowVector(soln, y, ppower);
+        soln := soln + y * ppower;
 
         y := -y * system.transposed_int_mat;
-        
-        for i in system.interesting_rows do
-            residue[i] := (residue[i] + y[i])/p;
-        od;
 
-       # residue{ system.interesting_rows } := residue{ system.interesting_rows } / p;
+        residue{[1..Length(residue)]}{ system.interesting_rows } :=
+            (residue + y){[1..Length(residue)]}{ system.interesting_rows} / p;
 
         ppower := ppower * p;
 
-        Info(InfoMajoranaLinearEq, 10, "soln:    ", soln);
-        Info(InfoMajoranaLinearEq, 10, "y:       ", y);
-        Info(InfoMajoranaLinearEq, 10, "residue: ", residue);
-
         # Solution found?
+        # TODO: we need a selector mask if we want
+        #       to finish when we found an integer solution :/
         if IsZero( residue ) then
             Info(InfoMajoranaLinearEq, 1,
                  "found an integer solution");
@@ -212,7 +208,7 @@ function(system, vi)
                 t2 := NanosecondsSinceEpoch() - t2;
                 Info(InfoMajoranaLinearEq, 1, "\n",
                      "reaching iteration limit", iterations, " took, ", t2 / 1000000., " msec");
-                Info(InfoMajoranaLinearEq, 1,
+                Info(InfoMajoranaLinearEq, 100,
                      "average bits          ", Length(soln), " ", Float(Sum(List(soln, Log2Int)) / Length(soln)), "\n",
                      "average bits (sol)    ", Length(system.solvable_variables), " ", Float(Sum(List(soln{system.solvable_variables}, Log2Int)) / (Length(system.solvable_variables) + 1)), "\n",
                      "average bits (unsol)  ", Length(system.unsolvable_variables), " ", Float(Sum(List(soln{system.unsolvable_variables}, Log2Int)) / (Length(system.unsolvable_variables) + 1)), "\n",
@@ -225,13 +221,13 @@ function(system, vi)
                      "reached iteration limit, trying to recover rational solution");
 
                 # Recover rational solutions
-                recovered_rat := List( soln{ system.solvable_variables }
-                                     , x -> RationalReconstruction(ppower, x) );
+                recovered_rat := List(soln, z -> List( z{ system.solvable_variables }
+                                     , x -> RationalReconstruction(ppower, x) ) );
                 if ForAny(recovered_rat, x -> x = fail) then
                     Error("failed to recover");
                 else
-                    system.rat_solution := ListWithIdenticalEntries( system.number_variables, 0 );
-                    system.rat_solution{ system.solvable_variables } := recovered_rat;
+                    system.rat_solution := NullMat(number_rhs, system.number_variables, Integers);
+                    system.rat_solution{ [1..Length(soln)] }{ system.solvable_variables } := recovered_rat;
                     return true;
                 fi;
             fi;
@@ -264,19 +260,11 @@ function(mat, vecs)
         Info(InfoMajoranaLinearEq, 5,
              "Solving for: ", Length(system.transposed_vecs), " rhs\n");
         t2 := NanosecondsSinceEpoch();
-        for vi in [1..Length(system.transposed_vecs)] do
-            t := NanosecondsSinceEpoch();
-            MAJORANA_SolutionIntMatVec_Padic(system, vi);
-            t := NanosecondsSinceEpoch() - t;
-            Info(InfoMajoranaLinearEq, 1, "solving rhs took: ", t/1000000., " msec\n");
-
-            Add(res.solutions, system.rat_solution);
-        od;
+        MAJORANA_SolutionIntMatVecs_Padic_(system);
         t2 := NanosecondsSinceEpoch() - t2;
         Info(InfoMajoranaLinearEq, 1, "solving all rhs took: ", t2/1000000., " msec\n");
 
-
-        res.solutions := TransposedMatMutable(res.solutions);
+        res.solutions := TransposedMatMutable(system.rat_solution);
         res.solutions := List(res.solutions, x -> SparseMatrix([x], Rationals));
     fi;
     res.solutions{ system.unsolvable_variables } := ListWithIdenticalEntries(Length(system.unsolvable_variables), fail);
