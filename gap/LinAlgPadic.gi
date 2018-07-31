@@ -301,3 +301,43 @@ function(mat, vecs)
     res.system := system;
     return res;
 end);
+
+InstallGlobalFunction( C0GAUSS_SolutionMatVec_Padic,
+function(mat, vec)
+    local vi, system, res, t, t2, tmpmat, tmpvecs;
+
+    res := rec();
+    res.solutions := [];
+    res.mat := mat;
+    res.vec := vec;
+
+    t := NanosecondsSinceEpoch();
+    system := MAJORANA_SetupMatVecsSystem_Padic( TransposedMatMutable(mat), TransposedMat(vec)
+                                                 , MAJORANA_Padic_Prime
+                                                 , MAJORANA_Padic_Precision
+                                                 , MAJORANA_Padic_Iterations );
+    t :=  NanosecondsSinceEpoch() - t;
+    Info(InfoMajoranaLinearEq, 1, "setup took: ", t/1000000., " msec\n");
+    if Length(system.solvable_variables) > 0 then
+        Info(InfoMajoranaLinearEq, 5,
+             "Solving for: ", Length(system.transposed_vecs), " rhs\n");
+        t2 := NanosecondsSinceEpoch();
+        for vi in [1..Length(system.transposed_vecs)] do
+            t := NanosecondsSinceEpoch();
+            MAJORANA_SolutionIntMatVec_Padic(system, vi);
+            t := NanosecondsSinceEpoch() - t;
+            Info(InfoMajoranaLinearEq, 1, "solving rhs took: ", t/1000000., " msec\n");
+
+            Add(res.solutions, system.rat_solution);
+        od;
+        t2 := NanosecondsSinceEpoch() - t2;
+        Info(InfoMajoranaLinearEq, 1, "solving all rhs took: ", t2/1000000., " msec\n");
+
+
+        res.solutions := TransposedMatMutable(res.solutions);
+    fi;
+
+    # Debugging
+    # res.system := system;
+    return res;
+end);
