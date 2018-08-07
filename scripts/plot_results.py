@@ -9,6 +9,7 @@ from cycler import cycler
 from numpy import log2
 import os
 
+
 # https://en.wikipedia.org/wiki/List_of_colors:_A%E2%80%93F
 COLORS = [
     '#007FFF',  # (b) azure
@@ -83,6 +84,6 @@ def plot_benchmarks(title, results, filename, x, y, xscale='linear', yscale='log
 
 if __name__ == "__main__":
     plt.switch_backend('agg')
-    plot_benchmarks('test', get_results('test.txt'), 'test.png',
+    plot_benchmarks('chrem_slns', get_results('results.txt'), 'results.png',
                     'size', 'time',
-                    'log', 'log')
+                    'linear', 'linear')
