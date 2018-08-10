@@ -43,3 +43,11 @@ InstallGlobalFunction(C0GAUSS_FoldList2,
     return res[ k * s ];
 end );
 
+InstallGlobalFunction(MatIntFFESymm,
+                      mat -> List(mat, IntFFESymm) );
+
+InstallOtherMethod(IntFFESymm,
+                   "for matrices",
+                   [IsFFECollColl],
+                   MatIntFFESymm );
+

@@ -1,27 +1,20 @@
 #
 # Solving linear equations over the integers/rationals by Dixon/Hensel lifting
 #
-DeclareInfoClass("InfoMajoranaPadics");
-DeclareInfoClass("InfoMajoranaLinearEq");
+DeclareInfoClass("InfoChar0GaussPadics");
+DeclareInfoClass("InfoChar0GaussLinearEq");
 
 # Setup status structure
-DeclareGlobalFunction( "MAJORANA_SetupMatVecsSystem_Padic" );
+DeclareGlobalFunction( "C0GAUSS_SetupMatVecsSystem_Padic" );
 
-DeclareGlobalFunction( "MAJORANA_Padic_Presolve" );
-
-# solve for one vector (integer version)
-DeclareGlobalFunction( "MAJORANA_SolutionIntMatVec_Padic" );
+DeclareGlobalFunction( "C0GAUSS_SolutionIntMatVecs_Padic" );
+DeclareGlobalFunction( "C0GAUSS_SolutionIntMatVec_Padic" );
 
 # solve for a list of vectors (rationals)
-DeclareGlobalFunction( "MAJORANA_SolutionMatVecs_Padic" );
+DeclareGlobalFunction( "C0GAUSS_SolutionMatVecs_Padic" );
 DeclareGlobalFunction( "C0GAUSS_SolutionMatVec_Padic" );
+DeclareGlobalFunction( "C0GAUSS_SolutionMat_Padic" );
 
-# Some default values, used in MAJORANA_SolutionMatVecs_Padic
-BindGlobal( "MAJORANA_Padic_Prime", 191 );
-BindGlobal( "MAJORANA_Padic_Precision", 100 );
-BindGlobal( "MAJORANA_Padic_Iterations", 100 );
-
-# FIXME: Todo?
-# DeclareGlobalFunction( "MAJORANA_NullspaceIntMat_Padic" );
-# DeclareGlobalFunction( "MAJORANA_NullspaceMat_Padic" );
-
+# Some default values
+BindGlobal( "C0GAUSS_Padic_Prime", 191 );
+BindGlobal( "C0GAUSS_Padic_Precision", 100 );
