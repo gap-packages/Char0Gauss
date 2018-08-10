@@ -121,50 +121,7 @@ function(mat, vecs, opts...)
     return system.sol_rat;
 end);
 
-
 InstallGlobalFunction( C0GAUSS_SolutionMatVecs_Padic,
-function(mat, vecs)
-    local vi, system, res, t, t2, tmpmat, tmpvecs;
-
-    res := rec();
-    res.solutions := [];
-    res.mat := mat;
-    res.vec := vecs;
-
-    mat := ConvertSparseMatrixToMatrix(mat);
-    vecs := ConvertSparseMatrixToMatrix(vecs);
-
-    t := NanosecondsSinceEpoch();
-    system := C0GAUSS_SetupMatVecsSystem_Padic( mat, vecs
-                                                , C0GAUSS_Padic_Prime
-                                                , C0GAUSS_Padic_Precision );
-    t := NanosecondsSinceEpoch() - t;
-    Info(InfoChar0GaussLinearEq, 1, "setup took: ", t/1000000., " msec\n");
-    if Length(system.solvable_variables) > 0 then
-        Info(InfoChar0GaussLinearEq, 5,
-             "Solving for: ", Length(system.transposed_vecs), " rhs\n");
-        t2 := NanosecondsSinceEpoch();
-        C0GAUSS_SolutionIntMatVecs_Padic(system);
-        t2 := NanosecondsSinceEpoch() - t2;
-        Info(InfoChar0GaussLinearEq, 1, "solving all rhs took: ", t2/1000000., " msec\n");
-
-        res.solutions := system.sol_rat;
-        res.solutions := List(res.solutions, x -> SparseMatrix([x], Rationals));
-    fi;
-    #    res.solutions{ system.unsolvable_variables } := ListWithIdenticalEntries(Length(system.unsolvable_variables), fail);
-
-    # res.mat := SparseMatrix(system.mat{ system.unsolvable_rows }, Rationals );
-    # res.vec := SparseMatrix(system.vecs{ system.unsolvable_rows }, Rationals );
-
-    res.mat!.ring := Rationals;
-    res.vec!.ring := Rationals;
-
-    # Debugging
-    res.system := system;
-    return res;
-end);
-
-InstallGlobalFunction( C0GAUSS_SolutionMatVec_Padic,
 function(mat, vec)
     local vi, system, res, t, t2, tmpmat, tmpvecs;
 
@@ -174,26 +131,25 @@ function(mat, vec)
     res.vec := vec;
 
     t := NanosecondsSinceEpoch();
-    system := MAJORANA_SetupMatVecsSystem_Padic( TransposedMatMutable(mat), TransposedMat(vec)
-                                                 , MAJORANA_Padic_Prime
-                                                 , MAJORANA_Padic_Precision
-                                                 , MAJORANA_Padic_Iterations );
+    system := C0GAUSS_SetupMatVecsSystem_Padic( TransposedMatMutable(mat), TransposedMat(vec)
+                                                 , C0GAUSS_Padic_Prime
+                                                 , C0GAUSS_Padic_Precision );
     t :=  NanosecondsSinceEpoch() - t;
-    Info(InfoMajoranaLinearEq, 1, "setup took: ", t/1000000., " msec\n");
+    Info(InfoChar0GaussLinearEq, 1, "setup took: ", t/1000000., " msec\n");
     if Length(system.solvable_variables) > 0 then
-        Info(InfoMajoranaLinearEq, 5,
+        Info(InfoChar0GaussLinearEq, 5,
              "Solving for: ", Length(system.transposed_vecs), " rhs\n");
         t2 := NanosecondsSinceEpoch();
         for vi in [1..Length(system.transposed_vecs)] do
             t := NanosecondsSinceEpoch();
-            MAJORANA_SolutionIntMatVec_Padic(system, vi);
+            C0GAUSS_SolutionIntMatVec_Padic(system, vi);
             t := NanosecondsSinceEpoch() - t;
-            Info(InfoMajoranaLinearEq, 1, "solving rhs took: ", t/1000000., " msec\n");
+            Info(InfoChar0GaussLinearEq, 1, "solving rhs took: ", t/1000000., " msec\n");
 
             Add(res.solutions, system.rat_solution);
         od;
         t2 := NanosecondsSinceEpoch() - t2;
-        Info(InfoMajoranaLinearEq, 1, "solving all rhs took: ", t2/1000000., " msec\n");
+        Info(InfoChar0GaussLinearEq, 1, "solving all rhs took: ", t2/1000000., " msec\n");
 
 
         res.solutions := TransposedMatMutable(res.solutions);
