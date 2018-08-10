@@ -36,7 +36,7 @@ PadicDenominator := function(number, max_iter)
     fam := FamilyObj(number);
     thresh := fam!.prime ^ QuoInt(fam!.precision, 2);
 
-    Info(InfoMajoranaPadics, 10, " n: ", number, "\n");
+    Info(InfoChar0GaussPadics, 10, " n: ", number, "\n");
 
     is_int := function(n)
         local negn;
@@ -59,15 +59,15 @@ PadicDenominator := function(number, max_iter)
         n := n + 1;
 
         tmp := little + big;
-        Info(InfoMajoranaPadics, 10
+        Info(InfoChar0GaussPadics, 10
              , " lf: ", String(littlef, 16)
              , " bf: ", String(bigf, 16));
-        Info(InfoMajoranaPadics, 10
+        Info(InfoChar0GaussPadics, 10
              , " little: ", little
              , " big:    ", big);
 
         if is_int(tmp) then
-            Info(InfoMajoranaPadics, 1, "PadicDenominator iterations: ", n);
+            Info(InfoChar0GaussPadics, 1, "PadicDenominator iterations: ", n);
             return bigf + littlef;
         fi;
 
@@ -78,7 +78,7 @@ PadicDenominator := function(number, max_iter)
             big := tmp;
             bigf := bigf + littlef;
         else
-            Info(InfoMajoranaLinearEq, 1, "little <= tmp <= big: "
+            Info(InfoChar0GaussLinearEq, 1, "little <= tmp <= big: "
                  , little, " "
                  , tmp, " "
                  , big);
@@ -86,7 +86,7 @@ PadicDenominator := function(number, max_iter)
         fi;
     od;
 
-    Info(InfoMajoranaPadics, 1
+    Info(InfoChar0GaussPadics, 1
          , " failed to compute denominator after ", n, " iterations, giving up");
     return fail;
 end;
@@ -111,14 +111,14 @@ PadicDenominatorList := function(list, max_iter)
         fi;
 
         k := k + 1;
-        Info(InfoMajoranaLinearEq, 10, "current denominator: ", old_denom);
+        Info(InfoChar0GaussLinearEq, 10, "current denominator: ", old_denom);
     until k > Length(list);
 
     if found then
-        Info(InfoMajoranaLinearEq, 10, "found denominator: ", old_denom);
+        Info(InfoChar0GaussLinearEq, 10, "found denominator: ", old_denom);
         return old_denom;
     else
-        Info(InfoMajoranaLinearEq, 10, "failed to find");
+        Info(InfoChar0GaussLinearEq, 10, "failed to find");
         return fail;
     fi;
 end;
