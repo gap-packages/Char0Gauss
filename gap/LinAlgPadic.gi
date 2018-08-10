@@ -5,52 +5,12 @@
 #
 # If you find any bugs, email markus.pfeiffer@morphism.de
 #
-# TODO:
-# * Carry denominator forward
-# * actually only solve the solvable variables.
-# * Make a better implementation of the padics code. Its currently pretty brittle
-#   and hacky
-# * More tests
-# * look at flint that has some of this functionality
-# * Implement in C or Rust (or Julia)?
-# * Parallelisation strategies
-# * use meataxe64
-#
-
-# Just to make sure we're not shooting ourselves
-# in the foot with inconsistent entries.
-CheckSystem := function(system)
-    local b, r, c;
-
-    Info( InfoChar0GaussLinearEq, 5,
-          " testing system of equation structure" );
-    if not IsPrime(system.p) then
-        Error("p is not prime");
-    fi;
-
-    for r in system.int_mat do
-        for c in r do
-            if DenominatorRat(c) <> 1 then
-                Error("Non-1-denominator in system.int_mat");
-            fi;
-        od;
-    od;
-
-    for r in system.int_vecs do
-        for c in r do
-            if DenominatorRat(c) <> 1 then
-                Error("Non-1-denominator in system.int_vecs");
-            fi;
-        od;
-    od;
-    Info( InfoChar0GaussLinearEq, 5,
-          " success.");
-end;
 
 MatIntFFESymm := mat -> List(mat, IntFFESymm);
+MatRationalReconstruction := {N, mat} -> List(mat, r -> List(r, e -> RationalReconstruction(N, e)));
 
 InstallGlobalFunction(C0GAUSS_SetupMatVecsSystem_Padic,
-function(mat, vecs, p, precision, max_iter)
+function(mat, vecs, p, precision)
     local system, mmults, vmults, lcm, t, r, n;
     system := rec( mat := mat
                  , vecs := vecs
@@ -78,7 +38,6 @@ function(mat, vecs, p, precision, max_iter)
     system.p := p;
     system.precision := precision;
     system.padic_family := PurePadicNumberFamily(p, precision);
-    system.padic_iterations := max_iter;
 
     system.mat_mod_p := system.int_mat * Z(system.p)^0;
     system.mat_mtx64 := MTX64_Matrix(system.mat_mod_p);
@@ -128,25 +87,46 @@ function(system)
     mult := system.mtx64.multiplier;
     mat_int := system.int_mat{ MTX64_PositionsBitString(system.mtx64.rowSelect) }{ MTX64_PositionsBitString(system.mtx64.colSelect) };
     residue := system.int_vecs{ MTX64_PositionsBitString(system.mtx64.rowSelect) };
-    sol_padic := ListWithIdenticalEntries(system.nr_solvable_variables, 0);
+    sol_padic := [];
 
     while not IsZero(residue) and
         (iterations < system.precision) do
         residue_p := MTX64_Matrix(residue * Z(p)^0);
         sol_p := mult * residue_p;
         sol_int := MatIntFFESymm(MTX64_ExtractMatrix(sol_p));
-        sol_padic := sol_padic + ppower * Concatenation(sol_int{system.solvable_variable_poss});
+        sol_padic := sol_padic - ppower * sol_int{system.solvable_variable_poss};
 
         residue := (residue + mat_int * sol_int) / p;
         iterations := iterations + 1;
         ppower := p * ppower;
     od;
     system.sol_padic := sol_padic;
-    system.sol_rat := List(sol_padic, x -> RationalReconstruction(ppower, x));
+    system.sol_rat := MatRationalReconstruction(ppower, sol_padic);
 end);
 
-# FIXME: This has to be compatible with MAJORANA_SolutionMatVecs
-# FIXME: Make compatible with sparse matrices.
+InstallGlobalFunction( C0GAUSS_SolutionMat_Padic,
+function(mat, vecs, opts...)
+    local system, prime, precision;
+
+    prime := C0GAUSS_Padic_Prime;
+    precision := C0GAUSS_Padic_Precision;
+
+    if Length(opts) = 1 then
+        if IsBound(opts[1].prime) then
+            prime := opts[1].prime;
+        fi;
+        if IsBound(opts[1].precision) then
+            precision := opts[1].precision;
+        fi;
+    fi;
+
+    system := C0GAUSS_SetupMatVecsSystem_Padic( mat, vecs, prime, precision);
+    C0GAUSS_SolutionIntMatVecs_Padic(system);
+
+    return system.sol_rat;
+end);
+
+
 InstallGlobalFunction( C0GAUSS_SolutionMatVecs_Padic,
 function(mat, vecs)
     local vi, system, res, t, t2, tmpmat, tmpvecs;
@@ -164,7 +144,7 @@ function(mat, vecs)
                                                 , C0GAUSS_Padic_Prime
                                                 , C0GAUSS_Padic_Precision
                                                 , C0GAUSS_Padic_Iterations );
-    t :=  NanosecondsSinceEpoch() - t;
+    t := NanosecondsSinceEpoch() - t;
     Info(InfoChar0GaussLinearEq, 1, "setup took: ", t/1000000., " msec\n");
     if Length(system.solvable_variables) > 0 then
         Info(InfoChar0GaussLinearEq, 5,
@@ -174,13 +154,13 @@ function(mat, vecs)
         t2 := NanosecondsSinceEpoch() - t2;
         Info(InfoChar0GaussLinearEq, 1, "solving all rhs took: ", t2/1000000., " msec\n");
 
-        res.solutions := TransposedMatMutable(system.rat_solution);
+        res.solutions := system.sol_rat;
         res.solutions := List(res.solutions, x -> SparseMatrix([x], Rationals));
     fi;
-    res.solutions{ system.unsolvable_variables } := ListWithIdenticalEntries(Length(system.unsolvable_variables), fail);
+    #    res.solutions{ system.unsolvable_variables } := ListWithIdenticalEntries(Length(system.unsolvable_variables), fail);
 
-    res.mat := SparseMatrix(system.mat{ system.unsolvable_rows }, Rationals );
-    res.vec := SparseMatrix(system.vecs{ system.unsolvable_rows }, Rationals );
+    # res.mat := SparseMatrix(system.mat{ system.unsolvable_rows }, Rationals );
+    # res.vec := SparseMatrix(system.vecs{ system.unsolvable_rows }, Rationals );
 
     res.mat!.ring := Rationals;
     res.vec!.ring := Rationals;
