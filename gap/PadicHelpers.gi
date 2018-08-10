@@ -1,4 +1,35 @@
 
+#
+# Exists as "RatNumberFromModular" in the edim package as well.
+#
+InstallGlobalFunction( RationalReconstruction,
+function(N, r)
+    local a0, b0, a1, b1, a2, b2, q;
+
+    a0 := N;
+    b0 := 0;
+    a1 := r;
+    b1 := 1;
+
+    while 2 * a1^2 > N - 1 do
+        q := QuoInt(a0, a1);
+
+        a2 := a0 - q * a1;
+        b2 := b0 - q * b1;
+
+        a0 := a1; b0 := b1;
+        a1 := a2; b1 := b2;
+    od;
+    if (2 * b1^2 <= N - 1) and GcdInt(a1, b1) = 1 then
+        return a1 / b1;
+    fi;
+
+    return fail;
+end );
+
+InstallGlobalFunction( MatRationalReconstruction,
+                       {N, mat} -> List(mat, r -> List(r, e -> RationalReconstruction(N, e) ) ) );
+
 # FIXME:
 PadicLess := function(a,b)
     local fam, p, q_a, q_b, r_a, r_b, div;

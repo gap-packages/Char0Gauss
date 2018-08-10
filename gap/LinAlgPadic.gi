@@ -1,14 +1,9 @@
+#
 # Solving linear equations over the integers/rationals by Dixon/Hensel lifting
 #
 # This is a GAP prototype which already works quite a bit faster than any code
 # inside GAP, for reasonably large systems (thousands of equations)
 #
-# If you find any bugs, email markus.pfeiffer@morphism.de
-#
-
-MatIntFFESymm := mat -> List(mat, IntFFESymm);
-MatRationalReconstruction := {N, mat} -> List(mat, r -> List(r, e -> RationalReconstruction(N, e)));
-
 InstallGlobalFunction(C0GAUSS_SetupMatVecsSystem_Padic,
 function(mat, vecs, p, precision)
     local system, mmults, vmults, lcm, t, r, n;
@@ -142,8 +137,7 @@ function(mat, vecs)
     t := NanosecondsSinceEpoch();
     system := C0GAUSS_SetupMatVecsSystem_Padic( mat, vecs
                                                 , C0GAUSS_Padic_Prime
-                                                , C0GAUSS_Padic_Precision
-                                                , C0GAUSS_Padic_Iterations );
+                                                , C0GAUSS_Padic_Precision );
     t := NanosecondsSinceEpoch() - t;
     Info(InfoChar0GaussLinearEq, 1, "setup took: ", t/1000000., " msec\n");
     if Length(system.solvable_variables) > 0 then
