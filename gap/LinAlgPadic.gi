@@ -80,8 +80,8 @@ function(system)
     p := system.p;
 
     mult := system.mtx64.multiplier;
-    mat_int := system.int_mat{ MTX64_PositionsBitString(system.mtx64.rowSelect) }{ MTX64_PositionsBitString(system.mtx64.colSelect) };
-    residue := system.int_vecs{ MTX64_PositionsBitString(system.mtx64.rowSelect) };
+    mat_int := system.int_mat{ system.row_select }{ system.col_select };
+    residue := system.int_vecs{ system.row_select };
     sol_padic := [];
 
     while not IsZero(residue) and
