@@ -73,6 +73,12 @@ function(system)
         , iterations
         , done;
 
+    if Length(MTX64_PositionsBitString(system.solvable_variables)) = 0 then
+        system.sol_padic := [];
+        system.sol_rat := [];
+        return;
+    fi;
+
     iterations := 0;
     ppower := 1;
     done := false;
@@ -84,8 +90,10 @@ function(system)
     residue := system.int_vecs{ system.row_select };
     sol_padic := [];
 
-    while not IsZero(residue) and
-        (iterations < system.precision) do
+    done := false;
+
+    while not (IsZero(residue) or done) do
+        # iterations < system.precision) do
         residue_p := MTX64_Matrix(residue * Z(p)^0);
         sol_p := mult * residue_p;
         sol_int := MatIntFFESymm(MTX64_ExtractMatrix(sol_p));
@@ -94,9 +102,21 @@ function(system)
         residue := (residue + mat_int * sol_int) / p;
         iterations := iterations + 1;
         ppower := p * ppower;
-    od;
+
+        if (iterations > system.precision) and (iterations mod 100 = 0) then
+            Print(iterations, " iterations done.\n");
+            system.sol_rat := MatRationalReconstruction(ppower, sol_padic);
+            if PositionProperty(Concatenation(system.sol_rat), x -> x = fail) = fail then
+                done := true;
+            fi;
+        fi;
+   od;
     system.sol_padic := sol_padic;
-    system.sol_rat := MatRationalReconstruction(ppower, sol_padic);
+#     system.sol_rat := MatRationalReconstruction(ppower, sol_padic);
+
+    if PositionProperty(Concatenation(system.sol_rat), x -> x = fail) <> fail then
+        Error("failed to recosntruct");
+    fi;
 end);
 
 InstallGlobalFunction( C0GAUSS_SolutionMat_Padic,
@@ -123,7 +143,7 @@ end);
 
 InstallGlobalFunction( C0GAUSS_SolutionMatVecs_Padic,
 function(mat, vec)
-    local vi, system, res, t, t2, tmpmat, tmpvecs;
+    local vi, system, res, t, t2, tmpmat, tmpvecs, sv;
 
     res := rec();
     res.solutions := [];
@@ -131,31 +151,33 @@ function(mat, vec)
     res.vec := vec;
 
     t := NanosecondsSinceEpoch();
-    system := C0GAUSS_SetupMatVecsSystem_Padic( TransposedMatMutable(mat), TransposedMat(vec)
+    mat := ConvertSparseMatrixToMatrix(mat);
+    vec := ConvertSparseMatrixToMatrix(vec);
+    t := NanosecondsSinceEpoch() - t;
+    Info(InfoChar0GaussLinearEq, 1, "conversion to sparse: ", t/1000000., " msec");
+
+
+    t := NanosecondsSinceEpoch();
+    system := C0GAUSS_SetupMatVecsSystem_Padic( mat, vec
                                                  , C0GAUSS_Padic_Prime
                                                  , C0GAUSS_Padic_Precision );
-    t :=  NanosecondsSinceEpoch() - t;
-    Info(InfoChar0GaussLinearEq, 1, "setup took: ", t/1000000., " msec\n");
-    if Length(system.solvable_variables) > 0 then
-        Info(InfoChar0GaussLinearEq, 5,
-             "Solving for: ", Length(system.transposed_vecs), " rhs\n");
-        t2 := NanosecondsSinceEpoch();
-        for vi in [1..Length(system.transposed_vecs)] do
-            t := NanosecondsSinceEpoch();
-            C0GAUSS_SolutionIntMatVec_Padic(system, vi);
-            t := NanosecondsSinceEpoch() - t;
-            Info(InfoChar0GaussLinearEq, 1, "solving rhs took: ", t/1000000., " msec\n");
+    t := NanosecondsSinceEpoch() - t;
+    Info(InfoChar0GaussLinearEq, 1, "setup took: ", t/1000000., " msec");
 
-            Add(res.solutions, system.rat_solution);
-        od;
-        t2 := NanosecondsSinceEpoch() - t2;
-        Info(InfoChar0GaussLinearEq, 1, "solving all rhs took: ", t2/1000000., " msec\n");
+    t := NanosecondsSinceEpoch();
+    C0GAUSS_SolutionIntMatVecs_Padic(system);
+    t := NanosecondsSinceEpoch() - t;
+    Info(InfoChar0GaussLinearEq, 1, "solving took: ", t/1000000., " msec");
+    Info(InfoChar0GaussLinearEq, 1, "number of solvables: ", Length(system.solvable_variables), ".");
 
+    # TODO: Document why this is correct
+    sv := system.col_select{ MTX64_PositionsBitString(system.solvable_variables) };
 
-        res.solutions := TransposedMatMutable(res.solutions);
-    fi;
+    res.solutions := ListWithIdenticalEntries( Length(mat[1]), fail );
+    res.solutions{sv} := List(system.sol_rat, x->SparseMatrix([x],Rationals));
 
-    # Debugging
-    # res.system := system;
+    res.mat := SparseMatrix(system.int_mat{ system.row_select }, Rationals);
+    res.vec := SparseMatrix(system.int_vecs{ system.row_select }, Rationals);
+
     return res;
 end);
