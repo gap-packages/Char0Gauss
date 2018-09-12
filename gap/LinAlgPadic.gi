@@ -13,22 +13,22 @@ function(mat, vecs, p, precision)
                  , number_equations := Length(mat) );
 
     #  MakeIntSystem(system);
-    Info(InfoChar0GaussLinearEq, 5,
-         "MakeIntSystem2: computing denominator lcms" );
+#     Info(InfoChar0GaussLinearEq, 5,
+#         "MakeIntSystem2: computing denominator lcms" );
 
-    t := NanosecondsSinceEpoch();
-    mmults := List(system.mat, x -> C0GAUSS_FoldList2(x, DenominatorRat, LcmInt));
-    vmults := List(system.vecs, x -> C0GAUSS_FoldList2(x, DenominatorRat, LcmInt));
-    lcm := C0GAUSS_FoldList2(Concatenation(mmults, vmults), IdFunc, LcmInt);
-    t := NanosecondsSinceEpoch() - t;
-    Info(InfoChar0GaussLinearEq, 1, "computing the LCM took: ", t / 1000000., " msec");
+#    t := NanosecondsSinceEpoch();
+#    mmults := List(system.mat, x -> C0GAUSS_FoldList2(x, DenominatorRat, LcmInt));
+#    vmults := List(system.vecs, x -> C0GAUSS_FoldList2(x, DenominatorRat, LcmInt));
+#    lcm := C0GAUSS_FoldList2(Concatenation(mmults, vmults), IdFunc, LcmInt);
+#    t := NanosecondsSinceEpoch() - t;
+#    Info(InfoChar0GaussLinearEq, 1, "computing the LCM took: ", t / 1000000., " msec");
 
-    Info(InfoChar0GaussLinearEq, 5,
-         "MakeIntSystem2: lcm: ", lcm);
+#    Info(InfoChar0GaussLinearEq, 5,
+#         "MakeIntSystem2: lcm: ", lcm);
 
-    system.lcm := lcm;
-    system.int_mat := system.mat * lcm;
-    system.int_vecs := system.vecs * lcm;
+#    system.lcm := lcm;
+    system.int_mat := system.mat;
+    system.int_vecs := system.vecs;
 
     system.p := p;
     system.precision := precision;
@@ -143,7 +143,7 @@ end);
 
 InstallGlobalFunction( C0GAUSS_SolutionMatVecs_Padic,
 function(mat, vec)
-    local vi, system, res, t, t2, tmpmat, tmpvecs, sv;
+    local vi, system, res, t, t2, tmpmat, tmpvecs, sv, lcmm, lcmv, lcm;
 
     res := rec();
     res.solutions := [];
@@ -151,16 +151,31 @@ function(mat, vec)
     res.vec := vec;
 
     t := NanosecondsSinceEpoch();
+    lcmm := C0GAUSS_FoldList2(List(mat!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt)),
+				IdFunc, LcmInt);
+    lcmv := C0GAUSS_FoldList2(List(vec!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt)),
+				IdFunc, LcmInt);
+    lcm := LcmInt(lcmm, lcmv);
+    mat := mat * lcm;
+    vec := vec * lcm;
+    t := NanosecondsSinceEpoch() - t;
+    Info(InfoChar0GaussLinearEq, 1, "lcm computation took: ", t/1000000., " msec");
+    
+
+    Info(InfoChar0GaussLinearEq, 1, "sparse matrices use: ", MemoryUsage(mat), " and ", MemoryUsage(vec), " bytes respectively");
+    t := NanosecondsSinceEpoch();
     mat := ConvertSparseMatrixToMatrix(mat);
     vec := ConvertSparseMatrixToMatrix(vec);
     t := NanosecondsSinceEpoch() - t;
-    Info(InfoChar0GaussLinearEq, 1, "conversion to sparse: ", t/1000000., " msec");
+    Info(InfoChar0GaussLinearEq, 1, "conversion from sparse: ", t/1000000., " msec");
+    Info(InfoChar0GaussLinearEq, 1, "dense matrices use: ", MemoryUsage(mat), " and ", MemoryUsage(vec), " bytes respectively");
 
 
     t := NanosecondsSinceEpoch();
     system := C0GAUSS_SetupMatVecsSystem_Padic( mat, vec
                                                  , C0GAUSS_Padic_Prime
                                                  , C0GAUSS_Padic_Precision );
+    system.lcm := lcm;
     t := NanosecondsSinceEpoch() - t;
     Info(InfoChar0GaussLinearEq, 1, "setup took: ", t/1000000., " msec");
 
