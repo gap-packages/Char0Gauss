@@ -4,4 +4,9 @@
 # Declarations
 #
 
+#DeclareGlobalFunction( "Char0Gauss" );
 
+
+#! @Description
+#!   Insert documentation
+#DeclareGlobalFunction( "RationalReconstruction" );
