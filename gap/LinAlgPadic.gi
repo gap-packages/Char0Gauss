@@ -12,7 +12,7 @@ function(mat, vecs, p, precision)
                  , number_variables := Length(mat[1])
                  , number_equations := Length(mat) );
 
-    #  MakeIntSystem(system);
+    # MakeIntSystem(system);
 #     Info(InfoChar0GaussLinearEq, 5,
 #         "MakeIntSystem2: computing denominator lcms" );
 
@@ -26,7 +26,7 @@ function(mat, vecs, p, precision)
 #    Info(InfoChar0GaussLinearEq, 5,
 #         "MakeIntSystem2: lcm: ", lcm);
 
-#    system.lcm := lcm;
+    system.lcm := 1;
     system.int_mat := system.mat;
     system.int_vecs := system.vecs;
 
@@ -152,14 +152,10 @@ function(mat, vec)
 
     t := NanosecondsSinceEpoch();
     lcmm := 1; lcmv := 1;
-    if not IsEmpty(mat!.entries) then
-    lcmm := C0GAUSS_FoldList2(List(mat!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt)),
-				IdFunc, LcmInt);
-    fi; 
-    if not IsEmpty(vec!.entries) then
-    lcmv := C0GAUSS_FoldList2(List(vec!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt)),
-				IdFunc, LcmInt);
-    fi;
+    C0GAUSS_FoldList2(List(mat!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt, 1)),
+				IdFunc, LcmInt, 1);
+    C0GAUSS_FoldList2(List(vec!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt, 1)),
+				IdFunc, LcmInt, 1);
     lcm := LcmInt(lcmm, lcmv);
     mat := mat * lcm;
     vec := vec * lcm;

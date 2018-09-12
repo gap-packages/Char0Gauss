@@ -1,12 +1,12 @@
 InstallGlobalFunction(C0GAUSS_FoldList2,
-    function(list, func, op)
+    function(list, func, op, def)
     local k, s, old_s, r, i, len, n, nh, res, r1, r2;
 
 
     len := Length(list);
     # FIXME: We don't know a default value to return here.
     if len = 0 then
-        Error("Lists of length 0 are not supported by this function");
+        return def;
     elif len = 1 then
         return func(list[1]);
     fi;
