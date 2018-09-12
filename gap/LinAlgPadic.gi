@@ -151,10 +151,15 @@ function(mat, vec)
     res.vec := vec;
 
     t := NanosecondsSinceEpoch();
+    lcmm := 1; lcmv := 1;
+    if not IsEmpty(mat!.entries) then
     lcmm := C0GAUSS_FoldList2(List(mat!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt)),
 				IdFunc, LcmInt);
+    fi; 
+    if not IsEmpty(vec!.entries) then
     lcmv := C0GAUSS_FoldList2(List(vec!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt)),
 				IdFunc, LcmInt);
+    fi;
     lcm := LcmInt(lcmm, lcmv);
     mat := mat * lcm;
     vec := vec * lcm;
