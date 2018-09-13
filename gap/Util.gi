@@ -8,7 +8,7 @@ InstallGlobalFunction(C0GAUSS_FoldList2,
     if len = 0 then
         return def;
     elif len = 1 then
-        return func(list[1]);
+        return op(def, func(list[1]));
     fi;
 
     res := List(list, func);
@@ -40,7 +40,7 @@ InstallGlobalFunction(C0GAUSS_FoldList2,
             res[i] := res[i-old_s];
         fi;
     od;
-    return res[ k * s ];
+    return op(def, res[ k * s ]);
 end );
 
 InstallGlobalFunction(MatIntFFESymm,
