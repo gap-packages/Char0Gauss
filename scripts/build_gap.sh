@@ -40,6 +40,6 @@ cd pkg
 
 git clone https://github.com/gap-packages/meataxe64
 
-for pkg in ${GAP_PKGS_TO_BUILD-io profiling gauss datastructures meataxe64}; do
+for pkg in ${GAP_PKGS_TO_BUILD-io profiling Gauss datastructures meataxe64}; do
     ../bin/BuildPackages.sh --strict $pkg*
 done
