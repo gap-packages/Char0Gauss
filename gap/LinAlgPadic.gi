@@ -77,7 +77,7 @@ function(system)
     mult := system.mtx64.multiplier;
     mat_int := CertainColumns(CertainRows(system.int_mat, system.row_select), system.col_select);
     residue := CertainRows(system.int_vecs, system.row_select);
-    sol_padic := [];
+    sol_padic := SparseZeroMatrix(Length(system.solvable_variable_poss), Ncols(system.int_vecs), Rationals);
 
     done := false;
 
@@ -85,16 +85,16 @@ function(system)
         # iterations < system.precision) do
         residue_p := MTX64_Matrix(ConvertSparseMatrixToMatrix(residue) * Z(p)^0);
         sol_p := mult * residue_p;
-        sol_int := MatIntFFESymm(MTX64_ExtractMatrix(sol_p));
-        sol_padic := sol_padic - ppower * sol_int{system.solvable_variable_poss};
+        sol_int := SparseMatrix(MatIntFFESymm(MTX64_ExtractMatrix(sol_p)), Rationals);
+        sol_padic := sol_padic - ppower * CertainRows(sol_int, system.solvable_variable_poss);
 
-        residue := (residue + mat_int * SparseMatrix(sol_int, Rationals)) * (1 / p);
+        residue := (residue + mat_int * sol_int) * (1 / p);
         iterations := iterations + 1;
         ppower := p * ppower;
 
         if (iterations > system.precision) and (iterations mod 100 = 0) then
             Info(InfoChar0GaussLinearEq, 10, iterations, " iterations done.\n");
-            system.sol_rat := MatRationalReconstruction(ppower, sol_padic);
+            system.sol_rat := MatRationalReconstruction(ppower, ConvertSparseMatrixToMatrix(sol_padic));
             if PositionProperty(Concatenation(system.sol_rat), x -> x = fail) = fail then
                 done := true;
             fi;
