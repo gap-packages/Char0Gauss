@@ -5,93 +5,30 @@
 # inside GAP, for reasonably large systems (thousands of equations)
 #
 
-InstallMethod( C0GAUSS_LeastCommonDenominator, "for a sparse matrix",
-               [ IsSparseMatrixRep ],
-function(mat)
-    if RingOfDefinition(mat) <> Rationals then
-        TryNextMethod();
-    fi;
-    return C0GAUSS_FoldList2(List(mat!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt, 1)),
-				             IdFunc, LcmInt, 1);
-end);
-
-InstallMethod( C0GAUSS_LeastCommonDenominator, "for a sparse matrix",
-               [ IsSparseMatrixRep, IsPosInt ],
-function(mat, init)
-    if RingOfDefinition(mat) <> Rationals then
-        TryNextMethod();
-    fi;
-    return C0GAUSS_FoldList2(List(mat!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt, init)),
-                            IdFunc, LcmInt, init);
-end);
-
-InstallMethod( C0GAUSS_LeastCommonDenominator, "for a sparse matrix",
-               [ IsMatrix ],
-function(mat)
-    if DefaultFieldOfMatrix(mat) <> Rationals then
-        TryNextMethod();
-    fi;
-    return C0GAUSS_FoldList2(List(mat, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt, 1)),
-                            IdFunc, LcmInt, 1);
-end);
-
-InstallMethod( C0GAUSS_LeastCommonDenominator, "for a list-of-lists matrix",
-                [ IsMatrix, IsPosInt ],
-function(mat, init)
-    if DefaultFieldOfMatrix(mat) <> Rationals then
-        TryNextMethod();
-    fi;
-    return C0GAUSS_FoldList2(List(mat, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt, init)),
-          IdFunc, LcmInt, init);
-end);
-
-
-InstallMethod( C0GAUSS_LeastCommonDenominator, "for a sparse matrix",
-               [ IsSparseMatrixRep, IsPosInt ],
-function(mat, init)
-    if RingOfDefinition(mat) <> Rationals then
-        TryNextMethod();
-    fi;
-    return C0GAUSS_FoldList2(List(mat!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt, init)),
-                            IdFunc, LcmInt, init);
-end);
 
 InstallGlobalFunction(C0GAUSS_SetupMatVecsSystem_Padic,
 function(mat, vecs, p, precision)
     local system, mmults, vmults, lcm, t, r, n;
     system := rec( mat := mat
                  , vecs := vecs
-                 , number_variables := Length(mat[1])
-                 , number_equations := Length(mat) );
+                 , number_variables := Ncols(mat)
+                 , number_equations := Nrows(mat) );
 
-    # makeintsystem(https://github.com/sebasguts/NautyTracesInterface/pull/10/filessystem);
-#     Info(InfoChar0GaussLinearEq, 5,
-#         "MakeIntSystem2: computing denominator lcms" );
+    t := NanosecondsSinceEpoch();
+    lcm := C0GAUSS_LeastCommonDenominator(mat);
+    lcm := LcmInt(lcm, C0GAUSS_LeastCommonDenominator(vecs));
+    t := NanosecondsSinceEpoch() - t;
+    Info(InfoChar0GaussLinearEq, 1, "computing the LCM took: ", t / 1000000., " msec");
 
-#    t := NanosecondsSinceEpoch();
-#    mmults := List(system.mat, x -> C0GAUSS_FoldList2(x, DenominatorRat, LcmInt));
-#    vmults := List(system.vecs, x -> C0GAUSS_FoldList2(x, DenominatorRat, LcmInt));
-#    lcm := C0GAUSS_FoldList2(Concatenation(mmults, vmults), IdFunc, LcmInt);
-#    t := NanosecondsSinceEpoch() - t;
-#    Info(InfoChar0GaussLinearEq, 1, "computing the LCM took: ", t / 1000000., " msec");
-
-#    Info(InfoChar0GaussLinearEq, 5,
-#         "MakeIntSystem2: lcm: ", lcm);
-
-    system.lcm := 1;
-    system.int_mat := system.mat;
-    system.int_vecs := system.vecs;
+    system.lcm := lcm;
+    system.int_mat := system.mat * lcm;
+    system.int_vecs := system.vecs * lcm;
 
     system.p := p;
     system.precision := precision;
     system.padic_family := PurePadicNumberFamily(p, precision);
 
-    system.mat_mod_p := system.int_mat * Z(system.p)^0;
-    system.mat_mtx64 := MTX64_Matrix(system.mat_mod_p);
-    # TODO: Benchmark impact of this
-    # ConvertToMatrixRep(system.mat_mod_p);
-
-    system.mtx64 := MTX64_Echelize(system.mat_mtx64);
+    system.mtx64 := MTX64_Echelize(MTX64_Matrix(ConvertSparseMatrixToMatrix(system.int_mat) * Z(p) ^ 0));
 
     # these are the variables we're interested in solving for
     n := MTX64_Matrix_NumRows(system.mtx64.remnant);
@@ -138,20 +75,20 @@ function(system)
     p := system.p;
 
     mult := system.mtx64.multiplier;
-    mat_int := system.int_mat{ system.row_select }{ system.col_select };
-    residue := system.int_vecs{ system.row_select };
+    mat_int := CertainColumns(CertainRows(system.int_mat, system.row_select), system.col_select);
+    residue := CertainRows(system.int_vecs, system.row_select);
     sol_padic := [];
 
     done := false;
 
-    while not (IsZero(residue) or done) do
+    while not (IsSparseZeroMatrix(residue) or done) do
         # iterations < system.precision) do
-        residue_p := MTX64_Matrix(residue * Z(p)^0);
+        residue_p := MTX64_Matrix(ConvertSparseMatrixToMatrix(residue) * Z(p)^0);
         sol_p := mult * residue_p;
         sol_int := MatIntFFESymm(MTX64_ExtractMatrix(sol_p));
         sol_padic := sol_padic - ppower * sol_int{system.solvable_variable_poss};
 
-        residue := (residue + mat_int * sol_int) / p;
+        residue := (residue + mat_int * SparseMatrix(sol_int, Rationals)) * (1 / p);
         iterations := iterations + 1;
         ppower := p * ppower;
 
@@ -162,7 +99,7 @@ function(system)
                 done := true;
             fi;
         fi;
-   od;
+    od;
     system.sol_padic := sol_padic;
 #     system.sol_rat := MatRationalReconstruction(ppower, sol_padic);
 
@@ -196,7 +133,7 @@ end);
 
 InstallGlobalFunction( C0GAUSS_SolutionMatVecs_Padic,
 function(mat, vec)
-    local vi, system, res, t, t2, tmpmat, tmpvecs, sv, lcmm, lcmv, lcm;
+    local vi, system, res, t, t2, tmpmat, tmpvecs, sv;
 
     res := rec();
     res.solutions := [];
@@ -204,32 +141,9 @@ function(mat, vec)
     res.vec := vec;
 
     t := NanosecondsSinceEpoch();
-    lcmm := 1; lcmv := 1;
-    C0GAUSS_FoldList2(List(mat!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt, 1)),
-				IdFunc, LcmInt, 1);
-    C0GAUSS_FoldList2(List(vec!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt, 1)),
-				IdFunc, LcmInt, 1);
-    lcm := LcmInt(lcmm, lcmv);
-    mat := mat * lcm;
-    vec := vec * lcm;
-    t := NanosecondsSinceEpoch() - t;
-    Info(InfoChar0GaussLinearEq, 1, "lcm computation took: ", t/1000000., " msec");
-    
-
-    Info(InfoChar0GaussLinearEq, 1, "sparse matrices use: ", MemoryUsage(mat), " and ", MemoryUsage(vec), " bytes respectively");
-    t := NanosecondsSinceEpoch();
-    mat := ConvertSparseMatrixToMatrix(mat);
-    vec := ConvertSparseMatrixToMatrix(vec);
-    t := NanosecondsSinceEpoch() - t;
-    Info(InfoChar0GaussLinearEq, 1, "conversion from sparse: ", t/1000000., " msec");
-    Info(InfoChar0GaussLinearEq, 1, "dense matrices use: ", MemoryUsage(mat), " and ", MemoryUsage(vec), " bytes respectively");
-
-
-    t := NanosecondsSinceEpoch();
     system := C0GAUSS_SetupMatVecsSystem_Padic( mat, vec
                                                  , C0GAUSS_Padic_Prime
                                                  , C0GAUSS_Padic_Precision );
-    system.lcm := lcm;
     t := NanosecondsSinceEpoch() - t;
     Info(InfoChar0GaussLinearEq, 1, "setup took: ", t/1000000., " msec");
 
@@ -242,11 +156,11 @@ function(mat, vec)
     # TODO: Document why this is correct
     sv := system.col_select{ MTX64_PositionsBitString(system.solvable_variables) };
 
-    res.solutions := ListWithIdenticalEntries( Length(mat[1]), fail );
+    res.solutions := ListWithIdenticalEntries( Ncols(mat), fail );
     res.solutions{sv} := List(system.sol_rat, x->SparseMatrix([x],Rationals));
 
-    res.mat := SparseMatrix(system.int_mat{ system.row_select }, Rationals);
-    res.vec := SparseMatrix(system.int_vecs{ system.row_select }, Rationals);
+    res.mat := CertainRows(system.int_mat, system.row_select);
+    res.vec := CertainRows(system.int_vecs, system.row_select);
 
     return res;
 end);

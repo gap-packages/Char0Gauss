@@ -4,8 +4,8 @@ gap> testLinAlg := function(n)
 >        , sol_a, sol_b;
 >   A := RandomMat(n,n,Rationals);
 >   b := RandomMat(n,1,Rationals);
->   Ac := MutableCopyMat(A);
->   bc := MutableCopyMat(b);
+>   Ac := SparseMatrix(A, Rationals);
+>   bc := SparseMatrix(b, Rationals);
 >   sol_a := C0GAUSS_SolutionMat_Padic(Ac, bc);
 >   Ac := TransposedMat(MutableCopyMat(A));
 >   bc := TransposedMat(MutableCopyMat(b));
