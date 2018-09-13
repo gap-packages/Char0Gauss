@@ -91,13 +91,3 @@ function(mat, init)
           IdFunc, LcmInt, init);
 end);
 
-
-InstallMethod( C0GAUSS_LeastCommonDenominator, "for a sparse matrix",
-               [ IsSparseMatrixRep, IsPosInt ],
-function(mat, init)
-    if RingOfDefinition(mat) <> Rationals then
-        TryNextMethod();
-    fi;
-    return C0GAUSS_FoldList2(List(mat!.entries, r -> C0GAUSS_FoldList2(r, DenominatorRat, LcmInt, init)),
-                            IdFunc, LcmInt, init);
-end);
