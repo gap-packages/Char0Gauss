@@ -15,6 +15,7 @@ DeclareGlobalFunction( "C0GAUSS_SolutionMatVecs_Padic" );
 DeclareGlobalFunction( "C0GAUSS_SolutionMatVec_Padic" );
 DeclareGlobalFunction( "C0GAUSS_SolutionMat_Padic" );
 
+
 # Some default values
 BindGlobal( "C0GAUSS_Padic_Prime", 191 );
 BindGlobal( "C0GAUSS_Padic_Precision", 100 );
