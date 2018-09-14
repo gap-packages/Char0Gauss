@@ -28,7 +28,30 @@ function(mat, vecs, p, precision)
     system.precision := precision;
     system.padic_family := PurePadicNumberFamily(p, precision);
 
-    system.mtx64 := MTX64_Echelize(MTX64_Matrix(ConvertSparseMatrixToMatrix(system.int_mat) * Z(p) ^ 0));
+    t := NanosecondsSinceEpoch();
+    system.mtx64 := system.int_mat * Z(p)^0;
+    system.mtx64!.ring := GF(p);
+    t := NanosecondsSinceEpoch() - t;
+    Info(InfoChar0GaussLinearEq, 1, "reduction mod p took: ", t / 1000000., " msec");
+
+
+    t := NanosecondsSinceEpoch();
+    system.mtx64 := ConvertSparseMatrixToMatrix(system.mtx64);
+    t := NanosecondsSinceEpoch() - t;
+    Info(InfoChar0GaussLinearEq, 1, "sparse matrix to matrix took: ", t / 1000000., " msec");
+
+
+    t := NanosecondsSinceEpoch();
+    system.mtx64 := MTX64_Matrix(system.mtx64);
+    t := NanosecondsSinceEpoch() - t;
+    Info(InfoChar0GaussLinearEq, 1, "MTX64 creation took: ", t / 1000000., " msec");
+
+
+    t := NanosecondsSinceEpoch();
+    system.mtx64 := MTX64_Echelize(system.mtx64);
+    t := NanosecondsSinceEpoch() - t;
+    Info(InfoChar0GaussLinearEq, 1, "echelize took: ", t / 1000000., " msec");
+
 
     # these are the variables we're interested in solving for
     n := MTX64_Matrix_NumRows(system.mtx64.remnant);
