@@ -155,16 +155,13 @@ end);
 
 
 InstallGlobalFunction( C0GAUSS_SolutionMatVecs_Padic,
-function(mat, vec)
-    local vi, system, res, t, t2, tmpmat, tmpvecs, sv;
+function(res)
+    local vi, system, t, t2, tmpmat, tmpvecs, sv;
 
-    res := rec();
     res.solutions := [];
-    res.mat := mat;
-    res.vec := vec;
 
     t := NanosecondsSinceEpoch();
-    system := C0GAUSS_SetupMatVecsSystem_Padic( mat, vec
+    system := C0GAUSS_SetupMatVecsSystem_Padic( res.mat, res.vec
                                                  , C0GAUSS_Padic_Prime
                                                  , C0GAUSS_Padic_Precision );
     t := NanosecondsSinceEpoch() - t;
@@ -179,7 +176,7 @@ function(mat, vec)
     # TODO: Document why this is correct
     sv := system.col_select{ MTX64_PositionsBitString(system.solvable_variables) };
 
-    res.solutions := ListWithIdenticalEntries( Ncols(mat), fail );
+    res.solutions := ListWithIdenticalEntries( Ncols(res.mat), fail );
     res.solutions{sv} := List(system.sol_rat, x->SparseMatrix([x],Rationals));
 
     res.mat := CertainRows(system.int_mat, system.row_select);
