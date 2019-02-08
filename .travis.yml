@@ -1,48 +1,33 @@
+dist: xenial
 language: c
 env:
   global:
     - GAPROOT=gaproot
     - COVDIR=coverage
+    - GAP_PKGS_TO_CLONE="meataxe64"
+    - GAP_PKGS_TO_BUILD="io profiling Gauss datastructures meataxe64"
+
 addons:
-  apt:
-    update: true
-    sources:
-      - ubuntu-toolchain-r-test
-    packages:
-      - gcc-5
-      - g++-5
-      - gcc-7
-      - g++-7
-      - binutils-gold
-      - binutils-2.26
   apt_packages:
-      - libgmp3-dev
-      - autotools-dev
-      - automake
+    - libgmp-dev
+    - libreadline-dev
+
 matrix:
   include:
     - env: CFLAGS="-O2" CC=clang CXX=clang++
       compiler: clang
     - env: CFLAGS="-O2" CC=gcc CXX=g++
       compiler: gcc
-    - env: CFLAGS="-O2" CC=gcc-5 CXX=g++-5
-      compiler: gcc-5
-    - env: CFLAGS="-O2" CC=gcc-7 CXX=g++-7
-      compiler: gcc-5
-    - env: CFLAGS="" AS=as-2.26  # test build w/o optimization
+    - env: CFLAGS=""  # test build w/o optimization
+
 branches:
   only:
     - master
 
 before_script:
-  - export PATH=/usr/lib/binutils-2.26/bin:${PATH}
-  - ld --version
-  - as --version
-  - as-2.26 --version
-  - gcc --version
   - export GAPROOT="$HOME/gap"
+  - git clone https://github.com/gap-system/pkg-ci-scripts.git scripts
   - scripts/build_gap.sh
-
 script:
   - scripts/build_pkg.sh && scripts/run_tests.sh
 after_script:
