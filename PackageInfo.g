@@ -12,6 +12,7 @@ PackageName := "Char0Gauss",
 Subtitle := "Linear algebra stuff",
 Version := "0.1",
 Date := "10/03/2017", # dd/mm/yyyy format
+License := "BSD-3-Clause",
 
 Persons := [
   rec(
