@@ -190,7 +190,7 @@ Char0Gauss_SolutionMat := function(A, b, moduli, die)
             mtx_echel := MTX64_Echelize(Ap);
             v_solvables := MTX64_EmptyBitString(Length(A));
 #            Display(-MTX64_ExtractMatrix(mtx_echel.remnant)[1]);
-            for c_i in [0..MTX64_Matrix_NumRows(mtx_echel.remnant) - 1] do
+            for c_i in [0..MTX64_NumRows(mtx_echel.remnant) - 1] do
                 if MTX64_DNzl(mtx_echel.remnant, c_i) = fail then
                     MTX64_SetEntryOfBitString(v_solvables, c_i);
                 fi;
@@ -205,7 +205,7 @@ Char0Gauss_SolutionMat := function(A, b, moduli, die)
 #                Print("mult:", -MTX64_ExtractMatrix(mtx_echel.multiplier)[1], "\n");
 #                Print("remn:", -MTX64_ExtractMatrix(mtx_echel.remnant)[1], "\n");
                 mtx_soln := MTX64_SolutionsMat(Ap, bp)[2];
-                if MTX64_Matrix_NumRows(mtx_soln) = 0 then
+                if MTX64_NumRows(mtx_soln) = 0 then
                     Info(InfoChar0GaussChineseRem, 10, "can't solve\n");
                     v := fail;
                 else
@@ -230,7 +230,7 @@ Char0Gauss_SolutionMat := function(A, b, moduli, die)
                 fi;
             fi;
             solvables := SortedList(Union(Set(solvables), Set(v_solvables)));
-#            Info(InfoChar0GaussChineseRem, 10, MTX64_LengthOfBitString(mtx_soln[1]), ", " , MTX64_Matrix_NumRows(mtx_soln[2]), 'x', MTX64_Matrix_NumCols(mtx_soln[2]), "\n");
+#            Info(InfoChar0GaussChineseRem, 10, MTX64_LengthOfBitString(mtx_soln[1]), ", " , MTX64_NumRows(mtx_soln[2]), 'x', MTX64_NumCols(mtx_soln[2]), "\n");
         # else
             # standard version if available
             # v := SolutionMat(Ap, bp);

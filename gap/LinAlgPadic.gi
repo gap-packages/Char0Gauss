@@ -54,7 +54,7 @@ function(mat, vecs, p, precision)
 
 
     # these are the variables we're interested in solving for
-    n := MTX64_Matrix_NumRows(system.mtx64.remnant);
+    n := MTX64_NumRows(system.mtx64.remnant);
     system.solvable_variables := MTX64_EmptyBitString(n);
     for r in [0..n-1] do
         if MTX64_DNzl(system.mtx64.remnant, r) = fail then
