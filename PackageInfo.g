@@ -70,7 +70,7 @@ PackageDoc := rec(
 ),
 
 Dependencies := rec(
-  GAP := ">= 4.8",
+  GAP := ">= 4.10",
   NeededOtherPackages := [ [ "GAPDoc", ">= 1.5" ],
                            [ "Gauss", ">= 0.0" ],
                            [ "MeatAxe64", ">= 0.0" ] ],
