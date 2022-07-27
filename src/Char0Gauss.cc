@@ -2,24 +2,7 @@
  * Char0Gauss: Linear algebra stuff
  */
 
-// Include gmp.h *before* switching to C mode, because GMP detects when
-// compiled from C++ and then does some things differently, which would
-// cause an error if called from within extern "C". But libsing.h
-// (indirectly) includes gmp.h ...
-#include <gmp.h>
-
-extern "C" {
 #include "src/compiled.h"          /* GAP headers                */
-    #include "src/rational.h"
-
-    Int EqRat(Obj l, Obj r);
-    Obj ZeroRat(Obj x);
-    Obj AInvRat(Obj x);
-    Obj InvRat(Obj x);
-    Obj ProdRat(Obj l, Obj r);
-    Obj SumRat(Obj l, Obj r);
-    Obj DiffRat(Obj l, Obj r); // Hack, because AInvRat does not accept integers..
-}
 
 /*
  * Fairly naive (but hopefully faster) gaussian elimination for
@@ -39,8 +22,8 @@ static inline Obj AddRationalRows(Obj dst, Obj src, Obj a)
 
     for(i=1; i <= LEN_PLIST(dst); i++) {
         tmp = ELM_PLIST(src, i);
-        tmp = ProdRat(tmp, a);
-        tmp = SumRat(ELM_PLIST(dst,i),tmp);
+        tmp = PROD(tmp, a);
+        tmp = SUM(ELM_PLIST(dst,i),tmp);
         SET_ELM_PLIST(dst, i, tmp);
         CHANGED_BAG(dst);
     }
@@ -53,7 +36,7 @@ static inline Obj MultRationalRow(Obj dst, Obj a)
     UInt i;
 
     for(i=1;i<=LEN_PLIST(dst);i++) {
-        tmp = ProdRat(ELM_PLIST(dst, i), a);
+        tmp = PROD(ELM_PLIST(dst, i), a);
         SET_ELM_PLIST(dst, i, tmp);
         CHANGED_BAG(dst);
     }
@@ -77,8 +60,7 @@ Obj SemiEchelonRationals(Obj self, Obj mat)
     Obj inv;
     Obj tmp, tmp2;
 
-    // ZeroRat ignores its argument...
-    zero = ZeroRat(inv);
+    zero = INTOBJ_INT(0);
 
     nrows = LEN_PLIST(mat);
     ncols = LEN_PLIST(ELM_PLIST(mat, 1));
@@ -102,21 +84,21 @@ Obj SemiEchelonRationals(Obj self, Obj mat)
             p = INT_INTOBJ(ELM_PLIST(nzheads, j));
 
             x = ELM_PLIST(row, p);
-            if (EqRat(x, zero) == 0) {
+            if (EQ(x, zero) == 0) {
                 tmp = ELM_PLIST(vectors, j);
-                tmp2 = DiffRat(zero, x);
+                tmp2 = AINV_SAMEMUT(x);
                 AddRationalRows(row, tmp, tmp2);
             }
         }
 
         /* First non-zero position */
-        for(j=1;EqRat(ELM_PLIST(row,j), zero);j++) {
+        for(j=1;EQ(ELM_PLIST(row,j), zero);j++) {
         };
         if(j<=ncols){
             /* New basis vector */
 
             /* This should, can't and will not fail. It will NOT FAIL */
-            inv = InvRat(ELM_PLIST(row,j));
+            inv = INV(ELM_PLIST(row,j));
             MultRationalRow(row, inv);
             SET_LEN_PLIST(vectors, nvecs);
             SET_ELM_PLIST(vectors, nvecs++, row);
