@@ -86,7 +86,12 @@ Obj SemiEchelonRationals(Obj self, Obj mat)
             x = ELM_PLIST(row, p);
             if (EQ(x, zero) == 0) {
                 tmp = ELM_PLIST(vectors, j);
-                tmp2 = AINV_SAMEMUT(x);
+                // HACK: the following should use AINV_SAMEMUT, but that
+                // name is new in GAP 4.12.0 and before it was called
+                // just AINV; to avoid having to deal with that, we just
+                // call AINV_MUT which is the same when dealing with GAP
+                // integers anyway (they are all immutable)
+                tmp2 = AINV_MUT(x);
                 AddRationalRows(row, tmp, tmp2);
             }
         }
