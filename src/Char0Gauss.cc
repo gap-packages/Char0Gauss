@@ -2,7 +2,7 @@
  * Char0Gauss: Linear algebra stuff
  */
 
-#include "compiled.h"   // GAP headers
+#include "gap_all.h"   // GAP headers
 
 /*
  * Fairly naive (but hopefully faster) gaussian elimination for
