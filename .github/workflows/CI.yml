@@ -59,7 +59,7 @@ jobs:
       - uses: gap-actions/setup-gap@v3
       - uses: gap-actions/install-pkg@v1
         with:
-          packages: "meataxe64"
+          packages: "gap-packages/meataxe64"
       - uses: gap-actions/build-pkg@v3
         with:
           extra-pkgs: "io profiling Gauss datastructures meataxe64"
